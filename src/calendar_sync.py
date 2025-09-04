@@ -64,10 +64,7 @@ class CalendarSync:
             # Try to get events
             try:
                 print("Fetching events...")
-                raw_events = calendar.events(
-                    from_dt=start_date,
-                    to_dt=end_date
-                )
+                raw_events = calendar.get_events(start_date, end_date)
                 
                 print(f"Found {len(raw_events)} events")
                 
