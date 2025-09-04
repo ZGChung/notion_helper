@@ -2,18 +2,14 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Union
-import caldav
 from notion_client import Client
 import dateutil.parser
-import vobject
-import urllib3
-import requests
-import xml.etree.ElementTree as ET
+import subprocess
+import json
+import re
 
 from .config import get_config
 
-# Disable insecure HTTPS warnings
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class CalendarEvent:
     """Represents a calendar event."""
@@ -43,158 +39,111 @@ class CalendarEvent:
 
 
 class CalendarSync:
-    """iCloud Calendar sync functionality."""
+    """Calendar sync functionality using macOS Calendar.app."""
 
     def __init__(self):
         self.config = get_config()
         self.notion = Client(auth=self.config.notion_token)
-        
-        # Custom headers for iCloud
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-            "Accept": "text/calendar,application/xml,application/json",
-            "Content-Type": "text/xml; charset=utf-8",
-            "Depth": "1",
-        }
 
-    def _discover_caldav_endpoint(self) -> str:
-        """Discover the correct CalDAV endpoint."""
-        print("\nDiscovering CalDAV endpoint...")
-        
-        # Try different server numbers
-        server_numbers = ["160", "161", "162", "163", "164", "165"]
-        base_urls = [
-            "https://caldav.icloud.com",
-            "https://p{num}-caldav.icloud.com",
-            "https://p{num}-calendarws.icloud.com"
-        ]
-        
-        # PROPFIND request body
-        propfind_body = """<?xml version="1.0" encoding="utf-8" ?>
-            <D:propfind xmlns:D="DAV:">
-                <D:prop>
-                    <D:current-user-principal/>
-                    <D:resourcetype/>
-                    <D:displayname/>
-                </D:prop>
-            </D:propfind>"""
-        
-        for base_url in base_urls:
-            for num in server_numbers:
-                url = base_url.format(num=num) if "{num}" in base_url else base_url
-                try:
-                    print(f"Trying URL: {url}")
-                    
-                    # Try PROPFIND request
-                    response = requests.request(
-                        "PROPFIND",
-                        url,
-                        auth=(self.config.icloud_username, self.config.icloud_password),
-                        headers=self.headers,
-                        data=propfind_body,
-                        verify=False,
-                        timeout=10
-                    )
-                    
-                    print(f"Response status: {response.status_code}")
-                    if response.status_code in (207, 200):  # 207 is Multi-Status response
-                        print("Found working endpoint!")
-                        print(f"Response: {response.text[:200]}...")  # Show first 200 chars
-                        return url
-                        
-                except Exception as e:
-                    print(f"Failed to connect: {e}")
-                    continue
-                    
-        raise Exception("Could not discover CalDAV endpoint")
+    def _run_applescript(self, script: str) -> str:
+        """Run AppleScript and return its output."""
+        try:
+            process = subprocess.Popen(
+                ['osascript', '-e', script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate()
+            
+            if process.returncode != 0:
+                print(f"AppleScript error: {stderr}")
+                return ""
+                
+            return stdout.strip()
+            
+        except Exception as e:
+            print(f"Error running AppleScript: {e}")
+            return ""
+
+    def _format_date(self, date: datetime) -> str:
+        """Format date for AppleScript."""
+        return date.strftime("%Y-%m-%d %H:%M:%S")
 
     def fetch_calendar_events(
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
-        """Fetch events from all calendars."""
+        """Fetch events from Calendar.app."""
         events = []
         
-        print("\nFetching events from calendars...")
+        print("\nFetching events from Calendar.app...")
         
-        try:
-            # Discover CalDAV endpoint
-            url = self._discover_caldav_endpoint()
-            print(f"\nUsing CalDAV endpoint: {url}")
+        # First, get list of calendars
+        calendar_script = """
+            tell application "Calendar"
+                set calList to {}
+                repeat with calendarAccount in calendars
+                    set end of calList to {name:name of calendarAccount, id:id of calendarAccount}
+                end repeat
+                return calList as text
+            end tell
+        """
+        
+        calendars_output = self._run_applescript(calendar_script)
+        print("\nAvailable calendars:")
+        print(calendars_output)
+        
+        # Parse calendar list
+        calendar_matches = re.finditer(r'{name:(.+?), id:(.+?)}', calendars_output)
+        calendars = [(m.group(1), m.group(2)) for m in calendar_matches]
+        
+        for cal_name, cal_id in calendars:
+            print(f"\nFetching events from calendar: {cal_name}")
             
-            # Create CalDAV client
-            client = caldav.DAVClient(
-                url=url,
-                username=self.config.icloud_username,
-                password=self.config.icloud_password,
-                headers=self.headers
-            )
+            # Get events for this calendar
+            events_script = f"""
+                tell application "Calendar"
+                    set eventList to {{}}
+                    set startDate to date "{self._format_date(start_date)}"
+                    set endDate to date "{self._format_date(end_date)}"
+                    set targetCal to calendar id "{cal_id}"
+                    
+                    set theEvents to (every event of targetCal whose start date is greater than or equal to startDate and start date is less than or equal to endDate)
+                    
+                    repeat with anEvent in theEvents
+                        set eventTitle to summary of anEvent
+                        set eventStart to start date of anEvent
+                        set eventEnd to end date of anEvent
+                        
+                        set end of eventList to {{title:eventTitle, start:eventStart, end:eventEnd}}
+                    end repeat
+                    
+                    return eventList as text
+                end tell
+            """
             
-            # Get principal (main calendar user)
-            principal = client.principal()
+            events_output = self._run_applescript(events_script)
+            print(f"Raw events output: {events_output[:200]}...")  # Show first 200 chars
             
-            # Get all calendars
-            calendars = principal.calendars()
-            print(f"\nFound {len(calendars)} calendars:")
+            # Parse events
+            event_matches = re.finditer(r'{title:(.+?), start:date "(.+?)", end:date "(.+?)"}', events_output)
             
-            for calendar in calendars:
+            for match in event_matches:
                 try:
-                    cal_name = calendar.name
-                    print(f"\nAccessing calendar: {cal_name}")
+                    title = match.group(1)
+                    start = dateutil.parser.parse(match.group(2))
+                    end = dateutil.parser.parse(match.group(3))
                     
-                    # Get calendar properties
-                    try:
-                        props = calendar.get_properties([
-                            caldav.elements.dav.DisplayName(),
-                            caldav.elements.caldav.CalendarDescription()
-                        ])
-                        print(f"Calendar properties: {props}")
-                    except Exception as e:
-                        print(f"Error getting calendar properties: {e}")
-                    
-                    # Get events in the date range
-                    events_in_calendar = calendar.search(
-                        start=start_date,
-                        end=end_date,
-                        event=True,
-                        expand=True  # Expand recurring events
-                    )
-                    
-                    print(f"Found {len(events_in_calendar)} events")
-                    
-                    # Process each event
-                    for event in events_in_calendar:
-                        try:
-                            # Get event data
-                            vevent = event.vobject_instance.vevent
-                            
-                            # Extract event details
-                            title = str(vevent.summary.value)
-                            start = vevent.dtstart.value
-                            end = vevent.dtend.value if hasattr(vevent, 'dtend') else None
-                            
-                            # Convert to datetime if needed
-                            if not isinstance(start, datetime):
-                                start = datetime.combine(start, datetime.min.time())
-                            if end and not isinstance(end, datetime):
-                                end = datetime.combine(end, datetime.min.time())
-                            
-                            print(f"  • {title}")
-                            events.append(CalendarEvent(
-                                title=title,
-                                start=start,
-                                end=end,
-                                calendar_name=cal_name
-                            ))
-                        except Exception as e:
-                            print(f"    Error processing event: {e}")
-                            continue
-                            
+                    print(f"  • {title}")
+                    events.append(CalendarEvent(
+                        title=title,
+                        start=start,
+                        end=end,
+                        calendar_name=cal_name
+                    ))
                 except Exception as e:
-                    print(f"Error accessing calendar {cal_name}: {e}")
+                    print(f"Error parsing event: {e}")
                     continue
-                    
-        except Exception as e:
-            print(f"Error accessing calendars: {e}")
         
         print(f"\nTotal events found: {len(events)}")
         return events
