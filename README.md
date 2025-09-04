@@ -14,6 +14,7 @@ Automate your workflow by integrating Notion todos, iCloud calendar, and email r
 - Import iCloud calendar events to Notion
 - Support for both timed and all-day events
 - Automatic timezone conversion
+- Selective calendar sync (choose which calendars to sync)
 
 📝 **Notion Integration**
 - Fetch todos directly from Notion
@@ -59,6 +60,10 @@ notion:
 icloud:
   username: "your.email@icloud.com"       # Your iCloud email
   password: "xxxx-xxxx-xxxx-xxxx"        # App-specific password
+  calendars:                             # List of calendars to sync
+    - "Calendar"                         # Leave empty to sync all calendars
+    - "Work"
+    - "Personal"
 
 # Email configuration
 email:
@@ -89,6 +94,10 @@ timezone: "Asia/Shanghai"  # Your timezone
 3. Under "Security", click "Generate Password" for app-specific passwords
 4. Enter a name (e.g., "Notion Helper") and copy the generated password
 5. Add the password to your config file
+6. List the calendars you want to sync in the config file
+   - Open Calendar.app to see your calendar names
+   - Add them to the `calendars` list in your config
+   - Leave the list empty to sync all calendars
 
 ### 5. Test Configuration
 
@@ -154,6 +163,8 @@ notion_helper/
    - Verify iCloud credentials
    - Check app-specific password
    - Ensure calendar access is enabled
+   - Verify calendar names match exactly with Calendar.app
+   - Check if selected calendars are accessible
 
 3. **Cron Job Not Running**
    - Check cron service is running: `sudo service cron status`

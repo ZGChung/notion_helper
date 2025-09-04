@@ -7,10 +7,17 @@ notion:
     project_database_id: "YOUR_PROJECT_DATABASE_ID"
     daily_log_page_id: "YOUR_DAILY_LOG_PAGE_ID"
 
+# iCloud configuration
+icloud:
+    username: "your_icloud_email@example.com"
+    password: "your_app_specific_password"  # Generate from Apple ID settings
+    calendars:  # List of calendar names to sync (empty list means all calendars)
+        - "Calendar"
+        - "Work"
+        - "Personal"
+
 # File paths
 paths:
-    daily_todos_dir: "~/Documents/DailyTodos" # Directory containing your daily todo files
-    ical_file: "~/Documents/calendar.ics" # Path to your iCalendar file
     email_template: "email_template.txt" # Email template file
 
 # Email configuration
@@ -26,7 +33,3 @@ email:
 
 # Timezone
 timezone: "Asia/Shanghai" # China Time
-
-# Daily todo file naming pattern
-# Supports strftime format, e.g., "%Y-%m-%d.txt" for "2023-12-01.txt"
-daily_todo_filename_pattern: "%Y-%m-%d.txt"
