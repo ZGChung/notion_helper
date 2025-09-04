@@ -52,18 +52,20 @@ def weekly_automation():
         # Step 2: Sync todos to project pages
         click.echo("🔄 Syncing todos to project pages...")
         parser = TodoParser()
-        
+
         # Get projects first to show available prefixes
         projects = parser.get_projects()
         if projects:
             click.echo(f"   📋 Found {len(projects)} projects with prefixes")
-            
+
             # Sync todos to projects
             sync_results = parser.sync_todos_to_projects()
-            
+
             if sync_results:
                 total_synced = sum(sync_results.values())
-                click.echo(f"   ✅ Synced {total_synced} todos to {len(sync_results)} projects")
+                click.echo(
+                    f"   ✅ Synced {total_synced} todos to {len(sync_results)} projects"
+                )
             else:
                 click.echo("   ℹ️  No todos with matching prefixes found")
         else:
@@ -72,24 +74,26 @@ def weekly_automation():
         # Step 3: Generate weekly email based on completed tasks
         click.echo("📧 Generating weekly email...")
         week_start, week_end = parser.get_current_week_range()
-        
+
         click.echo(
             f"   Week range: {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
         )
-        
+
         todos = parser.parse_week_files(week_start)
         completed_by_project = parser.get_completed_tasks_by_project(todos)
-        
+
         total_completed = sum(len(tasks) for tasks in completed_by_project.values())
-        
+
         if total_completed > 0:
-            click.echo(f"   Found {total_completed} completed tasks across {len(completed_by_project)} projects")
-            
+            click.echo(
+                f"   Found {total_completed} completed tasks across {len(completed_by_project)} projects"
+            )
+
             email_gen = EmailGenerator()
             email_content = email_gen.generate_weekly_email(
                 completed_by_project, week_start, week_end
             )
-            
+
             email_gen.save_email_draft_in_mail_app(email_content)
             click.echo("   ✅ Email draft saved to Mail.app")
         else:
@@ -100,6 +104,7 @@ def weekly_automation():
     except Exception as e:
         click.echo(f"❌ Error during weekly automation: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -189,34 +194,37 @@ def sync_todos():
 
     try:
         parser = TodoParser()
-        
+
         # Get projects first to show available prefixes
         projects = parser.get_projects()
         if not projects:
             click.echo("   ⚠️  No projects found in database")
             return
-        
+
         click.echo(f"   📋 Found {len(projects)} projects with prefixes:")
         for prefix, project in projects.items():
             click.echo(f"      [{prefix}] -> {project['name']}")
-        
+
         # Sync todos to projects
         sync_results = parser.sync_todos_to_projects()
-        
+
         if not sync_results:
             click.echo("   ℹ️  No todos with matching prefixes found")
             return
-        
+
         total_synced = sum(sync_results.values())
-        click.echo(f"   ✅ Successfully synced {total_synced} todos to {len(sync_results)} projects")
-        
+        click.echo(
+            f"   ✅ Successfully synced {total_synced} todos to {len(sync_results)} projects"
+        )
+
         for project_name, count in sync_results.items():
             if count > 0:
                 click.echo(f"      {project_name}: {count} todos")
-        
+
     except Exception as e:
         click.echo(f"   ❌ Error syncing todos: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
