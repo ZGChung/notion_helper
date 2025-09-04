@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Union
 import pyicloud
 from notion_client import Client
 import dateutil.parser
+import requests
 
 from .config import get_config
 
@@ -61,17 +62,25 @@ class CalendarSync:
             # Get calendar service
             calendar = self.api.calendar
             
-            # Get all calendars
+            # Try to get calendar collections
             try:
-                print("\nGetting all calendars...")
-                calendars = calendar.get_calendars()
-                print(f"Found {len(calendars)} calendars:")
-                for cal in calendars:
-                    print(f"  • {cal.get('title', 'Unknown')}")
+                print("\nGetting calendar collections...")
+                collections_url = calendar._calendar_collections_url()
+                response = calendar.session.get(collections_url)
+                collections = response.json().get('collections', [])
                 
+                print(f"Found {len(collections)} calendars:")
+                for collection in collections:
+                    print(f"  • {collection.get('title', 'Unknown')}")
+                    
                 # Get events from each calendar
-                for cal in calendars:
-                    cal_title = cal.get('title', 'Unknown')
+                for collection in collections:
+                    cal_title = collection.get('title', 'Unknown')
+                    cal_guid = collection.get('guid')
+                    
+                    if not cal_guid:
+                        continue
+                        
                     print(f"\nFetching events from {cal_title}...")
                     
                     try:
@@ -79,7 +88,7 @@ class CalendarSync:
                         raw_events = calendar.get_events(
                             from_dt=start_date,
                             to_dt=end_date,
-                            pguid=cal.get('guid')  # Filter by calendar
+                            pguid=cal_guid
                         )
                         
                         print(f"Found {len(raw_events)} events")
@@ -126,7 +135,7 @@ class CalendarSync:
                         continue
                         
             except Exception as e:
-                print(f"Error getting calendars: {e}")
+                print(f"Error getting calendar collections: {e}")
                 # Fallback to getting all events without calendar filtering
                 print("\nFalling back to getting all events...")
                 try:
