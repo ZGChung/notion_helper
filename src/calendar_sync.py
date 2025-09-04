@@ -109,17 +109,26 @@ class CalendarSync:
         # Build script to get events from selected calendars
         calendar_list = ", ".join(f'"{cal}"' for cal in selected_calendars)
 
+        # Convert the passed date parameters to AppleScript format
+        start_str = start_date.strftime("%m/%d/%Y %H:%M:%S")
+        end_str = end_date.strftime("%m/%d/%Y %H:%M:%S")
+
         events_script = f"""
             tell application "Calendar"
                 set output to ""
-                
+
+                -- define time range
+                set startDate to date "{start_str}"
+                set endDate to date "{end_str}"
+
                 repeat with cal_name in {{{calendar_list}}}
                     try
                         set cal to first calendar whose name is cal_name
                         set output to output & "Calendar:" & cal_name & linefeed
                         
-                        -- Get ALL events from calendar, we'll filter in Python
-                        set theEvents to (every event of cal)
+                        -- select only the events within the range
+                        set theEvents to every event of cal whose start date ≥ startDate and end date ≤ endDate
+                        
                         repeat with evt in theEvents
                             set output to output & "Event:" & summary of evt & linefeed
                             set output to output & "Start:" & ((start date of evt) as string) & linefeed
@@ -130,11 +139,14 @@ class CalendarSync:
                         set output to output & "Error:" & cal_name & ":" & errMsg & linefeed
                     end try
                 end repeat
-                
+
                 return output
             end tell
         """
 
+        print(
+            f"Now fetch the events between {start_str} and {end_str} for these calendars..."
+        )
         events_output = self._run_applescript(events_script)
 
         # Parse events output
@@ -173,10 +185,12 @@ class CalendarSync:
                 try:
                     event_start = dateutil.parser.parse(current_event["start"])
                     event_end = dateutil.parser.parse(current_event["end"])
-                    
+
                     # Filter events to only include those within the date range
-                    if (event_start.date() >= start_date.date() and 
-                        event_start.date() <= end_date.date()):
+                    if (
+                        event_start.date() >= start_date.date()
+                        and event_start.date() <= end_date.date()
+                    ):
                         events.append(
                             CalendarEvent(
                                 title=current_event["title"],
@@ -194,10 +208,12 @@ class CalendarSync:
             try:
                 event_start = dateutil.parser.parse(current_event["start"])
                 event_end = dateutil.parser.parse(current_event["end"])
-                
+
                 # Filter events to only include those within the date range
-                if (event_start.date() >= start_date.date() and 
-                    event_start.date() <= end_date.date()):
+                if (
+                    event_start.date() >= start_date.date()
+                    and event_start.date() <= end_date.date()
+                ):
                     events.append(
                         CalendarEvent(
                             title=current_event["title"],
