@@ -65,7 +65,8 @@ class CalendarSync:
             # Try to get calendar collections
             try:
                 print("\nGetting calendar collections...")
-                collections_url = calendar._calendar_collections_url()
+                collections_url = calendar._calendar_collections_url
+                print(f"Collections URL: {collections_url}")
                 response = calendar.session.get(collections_url)
                 collections = response.json().get('collections', [])
                 
