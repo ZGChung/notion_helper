@@ -108,23 +108,18 @@ class CalendarSync:
 
         # Build script to get events from selected calendars
         calendar_list = ", ".join(f'"{cal}"' for cal in selected_calendars)
-        
-        # Format dates properly for AppleScript
-        start_str = start_date.strftime("%B %d, %Y")
-        end_str = end_date.strftime("%B %d, %Y")
-        
+
         events_script = f"""
             tell application "Calendar"
                 set output to ""
-                set start_date to date "{start_str}"
-                set end_date to date "{end_str}"
                 
                 repeat with cal_name in {{{calendar_list}}}
                     try
                         set cal to first calendar whose name is cal_name
                         set output to output & "Calendar:" & cal_name & linefeed
                         
-                        set theEvents to (every event of cal whose start date is greater than or equal to start_date and start date is less than or equal to end_date)
+                        -- Get ALL events from calendar, we'll filter in Python
+                        set theEvents to (every event of cal)
                         repeat with evt in theEvents
                             set output to output & "Event:" & summary of evt & linefeed
                             set output to output & "Start:" & ((start date of evt) as string) & linefeed
@@ -176,22 +171,53 @@ class CalendarSync:
                 current_event["end"] = line[4:].strip()
             elif line == "---" and current_event:
                 try:
-                    events.append(
-                        CalendarEvent(
-                            title=current_event["title"],
-                            start=dateutil.parser.parse(current_event["start"]),
-                            end=dateutil.parser.parse(current_event["end"]),
-                            calendar_name=current_event["calendar"],
+                    event_start = dateutil.parser.parse(current_event["start"])
+                    event_end = dateutil.parser.parse(current_event["end"])
+                    
+                    # Filter events to only include those within the date range
+                    if (event_start.date() >= start_date.date() and 
+                        event_start.date() <= end_date.date()):
+                        events.append(
+                            CalendarEvent(
+                                title=current_event["title"],
+                                start=event_start,
+                                end=event_end,
+                                calendar_name=current_event["calendar"],
+                            )
                         )
-                    )
                 except Exception as e:
                     print(f"Error parsing event: {e}")
                 current_event = {}
 
+        # Handle last event if it exists
+        if current_event and "title" in current_event:
+            try:
+                event_start = dateutil.parser.parse(current_event["start"])
+                event_end = dateutil.parser.parse(current_event["end"])
+                
+                # Filter events to only include those within the date range
+                if (event_start.date() >= start_date.date() and 
+                    event_start.date() <= end_date.date()):
+                    events.append(
+                        CalendarEvent(
+                            title=current_event["title"],
+                            start=event_start,
+                            end=event_end,
+                            calendar_name=current_event["calendar"],
+                        )
+                    )
+            except Exception as e:
+                print(f"Error parsing final event: {e}")
+
         print(f"\nTotal events found: {len(events)}")
         return events
 
-    def sync_to_notion(self, start_date: datetime, end_date: datetime, events: List[CalendarEvent] = None) -> None:
+    def sync_to_notion(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        events: List[CalendarEvent] = None,
+    ) -> None:
         """Sync calendar events to Notion for the specified date range."""
         if events is None:
             events = self.fetch_calendar_events(start_date, end_date)
@@ -248,7 +274,10 @@ class CalendarSync:
             )
 
     def preview_sync(
-        self, start_date: datetime, end_date: datetime, events: List[CalendarEvent] = None
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        events: List[CalendarEvent] = None,
     ) -> Dict[str, List[str]]:
         """Preview calendar events that would be synced."""
         if events is None:

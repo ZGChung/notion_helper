@@ -110,7 +110,7 @@ def sync_calendar():
 
         # Fetch events once
         events = calendar_sync.fetch_calendar_events(next_week_start, next_week_end)
-        
+
         # Preview the events
         preview = calendar_sync.preview_sync(next_week_start, next_week_end, events)
 
