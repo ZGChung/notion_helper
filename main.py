@@ -201,18 +201,10 @@ def test_config():
         # Test config loading
         click.echo("   ✅ Configuration loaded successfully")
         
-        # Test file paths
-        click.echo(f"   📁 Daily todos directory: {config.daily_todos_dir}")
-        if config.daily_todos_dir.exists():
-            click.echo("      ✅ Directory exists")
-        else:
-            click.echo("      ⚠️  Directory does not exist")
-        
-        click.echo(f"   📅 iCalendar file: {config.ical_file}")
-        if config.ical_file.exists():
-            click.echo("      ✅ File exists")
-        else:
-            click.echo("      ⚠️  File does not exist")
+        # Test email configuration
+        click.echo("   📧 Testing email configuration...")
+        if config.email_to_list() and config.email_cc_list():
+            click.echo("      ✅ Email lists configured")
         
         # Test Notion connection
         click.echo("   🔗 Testing Notion connection...")
