@@ -3,9 +3,9 @@
 
 # Notion API Configuration
 notion:
-    token: "YOUR_NOTION_INTEGRATION_TOKEN"
-    project_database_id: "YOUR_PROJECT_DATABASE_ID"
-    daily_log_page_id: "YOUR_DAILY_LOG_PAGE_ID"
+    token: "ntn_M2650218099adbzL2yJfujqeVxMfOwxPj0pouFaCOLF9S8"
+    project_database_id: "14a09df71e7380ccaf70d9460b678570"
+    daily_log_page_id: "1fc09df71e738085b028e4e720c53e7e"
 
 # File paths
 paths:
@@ -21,9 +21,8 @@ email:
     cc_list:
         - "cc1@example.com"
         - "cc2@example.com"
-    boss_email: "boss@company.com"
     your_name: "Jayson Zhong"
-    subject_template: "Weekly Update - {week_start} to {week_end}"
+    subject_template: "Weekly update {}"
 
 # Timezone
 timezone: "Asia/Shanghai" # China Time

@@ -1,6 +1,6 @@
-Hi,
+Dear Paul,
 
-Here's my weekly update for {week_start} - {week_end}:
+I am writing to summarize my progress in the past 1 week.
 
 {project_summaries}
 
@@ -9,4 +9,5 @@ Here's my weekly update for {week_start} - {week_end}:
 Let me know if you have any questions!
 
 Best regards,
+
 {your_name}

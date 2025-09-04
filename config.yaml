@@ -15,7 +15,6 @@ paths:
 
 # Email configuration
 email:
-  boss_email: "boss@company.com"
   your_name: "Your Name"
   subject_template: "Weekly Update - {week_start} to {week_end}"
 
