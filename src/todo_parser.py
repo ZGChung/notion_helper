@@ -88,7 +88,7 @@ class TodoParser:
             for project in response["results"]:
                 # Extract project name from title property (could be "Name", "Title", or "Project")
                 title_property = (
-                    project["properties"].get("Name") 
+                    project["properties"].get("Name")
                     or project["properties"].get("Title")
                     or project["properties"].get("Project")
                 )
