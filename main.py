@@ -3,17 +3,15 @@
 Notion Helper - Workflow Automation Tool
 
 This script automates your todo list workflow by:
-1. Parsing daily todo lists to extract completed tasks
-2. Updating Notion project database with weekly summaries
-3. Generating weekly email reports
-4. Syncing calendar events to daily todo lists
+1. Syncing calendar events to daily todo lists
+2. Copying todo items with prefixes to their corresponding project pages
+3. Generating weekly email reports based on completed tasks
 
 Usage:
     python main.py weekly-automation    # Run full weekly automation (steps 1-3)
     python main.py sync-calendar       # Sync next week's calendar events
     python main.py sync-todos          # Sync todos with prefixes to project pages
     python main.py generate-email      # Generate weekly email only
-    python main.py update-notion       # Update Notion only
     python main.py test-config         # Test configuration and connections
     python main.py setup-cron          # Set up automated cron job
 """
@@ -41,59 +39,68 @@ def cli():
 
 @cli.command()
 def weekly_automation():
-    """Run full weekly automation: parse todos, update Notion, generate email, sync calendar."""
+    """Run full weekly automation: sync calendar, sync todos to projects, generate email."""
     click.echo("🚀 Starting weekly automation...")
 
     try:
-        # Step 1: Parse last week's completed todos
-        click.echo("📋 Parsing last week's todo lists...")
-        parser = TodoParser()
-        week_start, week_end = parser.get_last_week_range()
-
-        click.echo(
-            f"   Week range: {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
-        )
-
-        todos = parser.parse_week_files(week_start)
-        completed_by_project = parser.get_completed_tasks_by_project(todos)
-
-        total_completed = sum(len(tasks) for tasks in completed_by_project.values())
-        click.echo(
-            f"   Found {total_completed} completed tasks across {len(completed_by_project)} projects"
-        )
-
-        if total_completed == 0:
-            click.echo(
-                "   No completed tasks found. Skipping Notion and email updates."
-            )
-        else:
-            # Step 2: Update Notion
-            click.echo("📝 Updating Notion database...")
-            notion_client = NotionClient()
-            notion_client.update_project_database(completed_by_project)
-            notion_client.update_daily_log(completed_by_project, week_start, week_end)
-            click.echo("   ✅ Notion updated successfully")
-
-            # Step 3: Generate email
-            click.echo("📧 Generating weekly email...")
-            email_gen = EmailGenerator()
-            email_content = email_gen.generate_weekly_email(
-                completed_by_project, week_start, week_end
-            )
-
-            email_file = email_gen.save_email_draft(email_content)
-            click.echo(f"   ✅ Email draft saved to: {email_file}")
-
-        # Step 4: Sync next week's calendar
+        # Step 1: Sync next week's calendar events
         click.echo("📅 Syncing next week's calendar events...")
         calendar_sync = CalendarSync()
         calendar_sync.sync_next_week()
         click.echo("   ✅ Calendar sync completed")
 
+        # Step 2: Sync todos to project pages
+        click.echo("🔄 Syncing todos to project pages...")
+        parser = TodoParser()
+        
+        # Get projects first to show available prefixes
+        projects = parser.get_projects()
+        if projects:
+            click.echo(f"   📋 Found {len(projects)} projects with prefixes")
+            
+            # Sync todos to projects
+            sync_results = parser.sync_todos_to_projects()
+            
+            if sync_results:
+                total_synced = sum(sync_results.values())
+                click.echo(f"   ✅ Synced {total_synced} todos to {len(sync_results)} projects")
+            else:
+                click.echo("   ℹ️  No todos with matching prefixes found")
+        else:
+            click.echo("   ⚠️  No projects found in database")
+
+        # Step 3: Generate weekly email based on completed tasks
+        click.echo("📧 Generating weekly email...")
+        week_start, week_end = parser.get_last_week_range()
+        
+        click.echo(
+            f"   Week range: {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
+        )
+        
+        todos = parser.parse_week_files(week_start)
+        completed_by_project = parser.get_completed_tasks_by_project(todos)
+        
+        total_completed = sum(len(tasks) for tasks in completed_by_project.values())
+        
+        if total_completed > 0:
+            click.echo(f"   Found {total_completed} completed tasks across {len(completed_by_project)} projects")
+            
+            email_gen = EmailGenerator()
+            email_content = email_gen.generate_weekly_email(
+                completed_by_project, week_start, week_end
+            )
+            
+            email_gen.save_email_draft_in_mail_app(email_content)
+            click.echo("   ✅ Email draft saved to Mail.app")
+        else:
+            click.echo("   ℹ️  No completed tasks found for email generation")
+
         click.echo("🎉 Weekly automation completed successfully!")
 
     except Exception as e:
         click.echo(f"❌ Error during weekly automation: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
@@ -172,40 +179,6 @@ def generate_email():
 
     except Exception as e:
         click.echo(f"❌ Error generating email: {e}")
-        sys.exit(1)
-
-
-@cli.command()
-def update_notion():
-    """Update Notion database only."""
-    click.echo("📝 Updating Notion database...")
-
-    try:
-        # Parse last week's todos
-        parser = TodoParser()
-        week_start, week_end = parser.get_last_week_range()
-
-        todos = parser.parse_week_files(week_start)
-        completed_by_project = parser.get_completed_tasks_by_project(todos)
-
-        total_completed = sum(len(tasks) for tasks in completed_by_project.values())
-
-        if total_completed == 0:
-            click.echo("   No completed tasks found for last week.")
-            return
-
-        # Update Notion
-        notion_client = NotionClient()
-        notion_client.update_project_database(completed_by_project)
-        notion_client.update_daily_log(completed_by_project, week_start, week_end)
-
-        click.echo(f"   ✅ Notion updated successfully")
-        click.echo(
-            f"   📊 Summary: {total_completed} tasks across {len(completed_by_project)} projects"
-        )
-
-    except Exception as e:
-        click.echo(f"❌ Error updating Notion: {e}")
         sys.exit(1)
 
 
