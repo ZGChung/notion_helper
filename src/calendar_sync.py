@@ -1,9 +1,10 @@
 """iCloud Calendar sync functionality for importing calendar events to Notion."""
 
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import pyicloud
 from notion_client import Client
+import dateutil.parser
 
 from .config import get_config
 
@@ -43,7 +44,7 @@ class CalendarSync:
         self.api = pyicloud.PyiCloudService(
             self.config.icloud_username,
             self.config.icloud_password,
-            china_mainland=False  # Use global endpoint
+            china_mainland=False,  # Use global endpoint
         )
         self.notion = Client(auth=self.config.notion_token)
 
@@ -54,14 +55,61 @@ class CalendarSync:
         calendar = self.api.calendar
         events = []
 
-        for event in calendar.events(start_date, end_date):
-            events.append(
-                CalendarEvent(
-                    title=event.get("title"),
-                    start=event.get("startDate"),
-                    end=event.get("endDate"),
+        # Get events from calendar service
+        try:
+            # Try to get events directly
+            raw_events = calendar.get_events(start_date, end_date)
+        except AttributeError:
+            # If get_events doesn't exist, try accessing events property
+            try:
+                raw_events = calendar.events
+            except AttributeError:
+                # If neither works, try accessing raw calendar data
+                raw_events = calendar.get("Event", [])
+
+        # Process events
+        for event in raw_events:
+            # Handle different event formats
+            if isinstance(event, dict):
+                title = event.get("title") or event.get("summary")
+                start = event.get("startDate") or event.get("start")
+                end = event.get("endDate") or event.get("end")
+            else:
+                # If event is an object
+                title = getattr(event, "title", None) or getattr(event, "summary", None)
+                start = getattr(event, "startDate", None) or getattr(
+                    event, "start", None
                 )
-            )
+                end = getattr(event, "endDate", None) or getattr(event, "end", None)
+
+            # Parse dates if needed
+            try:
+                if isinstance(start, (list, tuple)):
+                    # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
+                    year = start[1]
+                    month = start[2]
+                    day = start[3]
+                    hour = start[4]
+                    minute = start[5]
+                    start = datetime(year, month, day, hour, minute)
+                
+                if isinstance(end, (list, tuple)):
+                    year = end[1]
+                    month = end[2]
+                    day = end[3]
+                    hour = end[4]
+                    minute = end[5]
+                    end = datetime(year, month, day, hour, minute)
+                
+                elif isinstance(start, str):
+                    start = dateutil.parser.parse(start)
+                elif isinstance(end, str):
+                    end = dateutil.parser.parse(end)
+
+                if title and start:
+                    events.append(CalendarEvent(title=title, start=start, end=end))
+            except Exception as e:
+                print(f"Error processing event: {e}")
 
         return events
 
