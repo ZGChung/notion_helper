@@ -7,13 +7,14 @@ from notion_client import Client
 import dateutil.parser
 import recurring_ical_events
 from icalendar import Calendar
+import requests
 
 from .config import get_config
 
 
 class CalendarEvent:
     """Represents a calendar event."""
-
+    
     def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
         self.title = title
         self.start = start
@@ -40,19 +41,12 @@ class CalendarEvent:
 
 class CalendarSync:
     """iCloud Calendar sync functionality."""
-
+    
     def __init__(self):
         self.config = get_config()
-        # Connect to both iCloud and Apple Calendar
+        # Connect to iCloud Calendar
         self.icloud_client = caldav.DAVClient(
             url="https://caldav.icloud.com",
-            username=self.config.icloud_username,
-            password=self.config.icloud_password
-        )
-        # Apple Calendar uses a different URL
-        username_prefix = self.config.icloud_username.split('@')[0]
-        self.apple_client = caldav.DAVClient(
-            url=f"https://p{username_prefix}-calendarws.icloud.com",  # Apple Calendar Web Service endpoint
             username=self.config.icloud_username,
             password=self.config.icloud_password
         )
@@ -66,79 +60,130 @@ class CalendarSync:
         
         print("\nFetching events from calendars...")
         
-        # Try both clients to get all calendars
-        for client, client_name in [(self.icloud_client, "iCloud"), (self.apple_client, "Apple")]:
-            try:
-                print(f"\nTrying {client_name} calendars...")
-                # Get the principal (main calendar user)
-                principal = client.principal()
+        # Try to get all calendars
+        try:
+            print("\nAccessing calendars...")
+            # Get the principal (main calendar user)
+            principal = self.icloud_client.principal()
+            
+            # Get all calendars
+            calendars = principal.calendars()
+            print(f"Found {len(calendars)} calendars:")
+            
+            # Define the calendars we want to fetch from
+            target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
+            
+            for calendar in calendars:
+                calendar_name = calendar.name
+                print(f"  • {calendar_name}")
                 
-                # Get all calendars
-                calendars = principal.calendars()
-                print(f"Found {len(calendars)} calendars in {client_name}:")
+                # Only process calendars we're interested in
+                if calendar_name not in target_calendars:
+                    print(f"    Skipping (not in target calendars)")
+                    continue
                 
-                # Define the calendars we want to fetch from
-                target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
+                print(f"    Fetching events...")
                 
-                for calendar in calendars:
-                    calendar_name = calendar.name
-                    print(f"  • {calendar_name}")
+                try:
+                    # Get events in the date range
+                    events_in_calendar = calendar.search(
+                        start=start_date,
+                        end=end_date,
+                        event=True,
+                        expand=True  # Expand recurring events
+                    )
                     
-                    # Only process calendars we're interested in
-                    if calendar_name not in target_calendars:
-                        print(f"    Skipping (not in target calendars)")
-                        continue
+                    print(f"    Found {len(events_in_calendar)} events")
                     
-                    print(f"    Fetching events...")
+                    for event in events_in_calendar:
+                        try:
+                            # Parse the event data
+                            event_data = event.instance.vevent
+                            title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
+                            start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
+                            end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
+                            
+                            # Convert to datetime if date
+                            if hasattr(start, 'date'):
+                                start = start
+                            else:
+                                start = datetime.combine(start, datetime.min.time())
+                            
+                            if end and hasattr(end, 'date'):
+                                end = end
+                            elif end:
+                                end = datetime.combine(end, datetime.min.time())
+                            
+                            print(f"      • {title}")
+                            events.append(CalendarEvent(
+                                title=title,
+                                start=start,
+                                end=end,
+                                calendar_name=calendar_name
+                            ))
+                        except Exception as e:
+                            print(f"      Error processing event: {e}")
+                            continue
+                            
+                except Exception as e:
+                    print(f"    Error fetching events from calendar: {e}")
+                    continue
                     
-                    try:
-                        # Get events in the date range
-                        events_in_calendar = calendar.search(
-                            start=start_date,
-                            end=end_date,
-                            event=True,
-                            expand=True  # Expand recurring events
-                        )
-                        
-                        print(f"    Found {len(events_in_calendar)} events")
-                        
-                        for event in events_in_calendar:
+        except Exception as e:
+            print(f"Error accessing calendars: {e}")
+        
+        # Try to access Apple Calendar directly
+        try:
+            print("\nTrying to access Apple Calendar directly...")
+            username_prefix = self.config.icloud_username.split('@')[0]
+            
+            # Try different possible endpoints
+            endpoints = [
+                f"https://p{username_prefix}-caldav.icloud.com/calendars/users/{self.config.icloud_username}",
+                f"https://p{username_prefix}-calendarws.icloud.com/calendars/users/{self.config.icloud_username}",
+                f"https://caldav.icloud.com/calendars/users/{self.config.icloud_username}"
+            ]
+            
+            for endpoint in endpoints:
+                try:
+                    print(f"  Trying endpoint: {endpoint}")
+                    response = requests.get(
+                        endpoint,
+                        auth=(self.config.icloud_username, self.config.icloud_password),
+                        headers={'Content-Type': 'text/calendar'},
+                        timeout=5
+                    )
+                    
+                    if response.status_code == 200:
+                        print("  Successfully connected!")
+                        # Parse calendar data
+                        cal = Calendar.from_ical(response.text)
+                        for component in cal.walk('VEVENT'):
                             try:
-                                # Parse the event data
-                                event_data = event.instance.vevent
-                                title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
-                                start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
-                                end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
-                                
-                                # Convert to datetime if date
-                                if hasattr(start, 'date'):
-                                    start = start
-                                else:
-                                    start = datetime.combine(start, datetime.min.time())
-                                
-                                if end and hasattr(end, 'date'):
-                                    end = end
-                                elif end:
-                                    end = datetime.combine(end, datetime.min.time())
+                                title = str(component.get('summary', 'No Title'))
+                                start = component.get('dtstart').dt
+                                end = component.get('dtend').dt if component.get('dtend') else None
                                 
                                 print(f"      • {title}")
                                 events.append(CalendarEvent(
                                     title=title,
                                     start=start,
                                     end=end,
-                                    calendar_name=f"{client_name}/{calendar_name}"
+                                    calendar_name="Apple Calendar"
                                 ))
                             except Exception as e:
-                                print(f"      Error processing event: {e}")
+                                print(f"      Error processing Apple Calendar event: {e}")
                                 continue
-                                
-                    except Exception as e:
-                        print(f"    Error fetching events from calendar: {e}")
-                        continue
+                        break
+                    else:
+                        print(f"  Failed with status code: {response.status_code}")
                         
-            except Exception as e:
-                print(f"Error accessing {client_name} calendars: {e}")
-                continue
+                except Exception as e:
+                    print(f"  Error with endpoint: {e}")
+                    continue
+        
+        except Exception as e:
+            print(f"Error accessing Apple Calendar: {e}")
         
         print(f"\nTotal events found across all calendars: {len(events)}")
         return events
@@ -191,7 +236,7 @@ class CalendarSync:
         if blocks:
             print(f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:")
             print(f"- Events under '{date_str}':")
-            for event in events:
+        for event in events:
                 calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
                 print(f"  • {calendar_info}{event.title}")
             
@@ -218,7 +263,7 @@ class CalendarSync:
             if event.end:
                 time_str += f"-{event.end.strftime('%H:%M')}"
             preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
-
+        
         return preview
 
     def sync_next_week(self) -> None:
