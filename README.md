@@ -11,10 +11,11 @@ Automate your workflow by integrating Notion todos, iCloud calendar, and email r
 3. **Weekly Reporting**: Generate professional email reports based on completed tasks
 
 🤖 **AI-Powered Email Polishing**
-- Automatic email style enhancement using DeepSeek AI
-- Professional formatting with numbered sections and bullet points
-- Preserves @mentions and technical details while improving readability
-- Falls back gracefully if AI service is unavailable
+
+-   Automatic email style enhancement using DeepSeek AI
+-   Professional formatting with numbered sections and bullet points
+-   Preserves @mentions and technical details while improving readability
+-   Falls back gracefully if AI service is unavailable
 
 📅 **Smart Calendar Integration**
 
@@ -105,9 +106,9 @@ timezone: "Asia/Shanghai" # Your timezone
 4. Enter a name (e.g., "Notion Helper") and copy the generated password
 5. Add the password to your config file
 6. List the calendars you want to sync in the config file
-   - Open Calendar.app to see your calendar names
-   - Add them to the `calendars` list in your config
-   - Leave the list empty to sync all calendars
+    - Open Calendar.app to see your calendar names
+    - Add them to the `calendars` list in your config
+    - Leave the list empty to sync all calendars
 
 ### 5. Setup DeepSeek AI (Optional)
 
@@ -116,10 +117,10 @@ For AI-powered email polishing:
 1. Go to https://platform.deepseek.com
 2. Sign up and get your API key
 3. Add the API key to your config file:
-   ```yaml
-   deepseek:
-     api_key: "your_actual_api_key_here"
-   ```
+    ```yaml
+    deepseek:
+        api_key: "your_actual_api_key_here"
+    ```
 4. Install the OpenAI library: `pip install openai>=1.0.0`
 
 **Note**: Email generation works without DeepSeek - it just won't include AI polishing.
