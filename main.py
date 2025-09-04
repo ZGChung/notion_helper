@@ -225,10 +225,28 @@ def test_config():
         # Test Notion connection
         click.echo("   🔗 Testing Notion connection...")
         notion_client = NotionClient()
-        if notion_client.test_connection():
-            click.echo("      ✅ Notion connection successful")
-        else:
-            click.echo("      ❌ Notion connection failed")
+        try:
+            # Test basic connection
+            user = notion_client.client.users.me()
+            click.echo(f"      ✅ Connected as: {user.get('name', 'Unknown')}")
+
+            # Test database access
+            db = notion_client.client.databases.retrieve(
+                database_id=notion_client.config.project_database_id
+            )
+            click.echo(
+                f"      ✅ Database access successful: {db.get('title', [{}])[0].get('text', {}).get('content', 'Untitled')}"
+            )
+
+            # Test page access
+            page = notion_client.client.pages.retrieve(
+                page_id=notion_client.config.daily_log_page_id
+            )
+            click.echo("      ✅ Page access successful")
+
+        except Exception as e:
+            click.echo(f"      ❌ Notion connection failed: {str(e)}")
+            raise e
 
         click.echo("🎉 Configuration test completed!")
 
