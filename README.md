@@ -1,33 +1,29 @@
 # Notion Helper - Workflow Automation Tool
 
-Automate your todo list workflow by integrating daily todos, Notion project tracking, weekly email reports, and calendar synchronization.
+Automate your workflow by integrating Notion todos, iCloud calendar, and email reporting.
 
 ## Features
 
 🔄 **Automated Weekly Workflow**
-
--   Parse completed tasks from daily todo lists
--   Update Notion project database with weekly summaries
--   Generate professional weekly email reports
--   Sync next week's calendar events to daily todos
+- Fetch completed tasks from Notion
+- Update Notion project database with weekly summaries
+- Generate professional weekly email reports
+- Sync iCloud calendar events to Notion
 
 📅 **Smart Calendar Integration**
+- Import iCloud calendar events to Notion
+- Support for both timed and all-day events
+- Automatic timezone conversion
 
--   Import iCalendar events to daily todo lists
--   Support for both timed and all-day events
--   Automatic timezone conversion
-
-📝 **Flexible Todo Parsing**
-
--   Support multiple todo formats (checkboxes, strikethrough)
--   Automatic project categorization
--   Date-based file organization
+📝 **Notion Integration**
+- Fetch todos directly from Notion
+- Automatic project categorization
+- Date-based organization
 
 🤖 **Full Automation**
-
--   Cron job setup for Friday 16:00 China Time
--   Manual commands for individual operations
--   Comprehensive error handling and logging
+- Cron job setup for Friday 16:00 China Time
+- Manual commands for individual operations
+- Comprehensive error handling and logging
 
 ## Quick Start
 
@@ -50,37 +46,33 @@ Copy and edit the configuration file:
 cp config.yaml my_config.yaml
 ```
 
-Edit `config.yaml` with your settings:
+Edit `my_config.yaml` with your settings:
 
 ```yaml
 # Notion API Configuration
 notion:
-    token: "YOUR_NOTION_INTEGRATION_TOKEN"
-    project_database_id: "YOUR_PROJECT_DATABASE_ID"
-    daily_log_page_id: "YOUR_DAILY_LOG_PAGE_ID"
+  token: "YOUR_NOTION_INTEGRATION_TOKEN"
+  project_database_id: "YOUR_PROJECT_DATABASE_ID"
+  daily_log_page_id: "YOUR_DAILY_LOG_PAGE_ID"
 
-# File paths
-paths:
-    daily_todos_dir: "~/Documents/DailyTodos"
-    ical_file: "~/Documents/calendar.ics"
-    email_template: "email_template.txt"
+# iCloud configuration
+icloud:
+  username: "your.email@icloud.com"       # Your iCloud email
+  password: "xxxx-xxxx-xxxx-xxxx"        # App-specific password
 
 # Email configuration
 email:
-    to_list:
-        - "recipient1@example.com"
-        - "recipient2@example.com"
-    cc_list:
-        - "cc1@example.com"
-        - "cc2@example.com"
-    your_name: "Your Name"
-    subject_template: "Weekly Update - {week_start} to {week_end}"
+  to_list:
+    - "recipient1@example.com"
+    - "recipient2@example.com"
+  cc_list:
+    - "cc1@example.com"
+    - "cc2@example.com"
+  your_name: "Your Name"
+  subject_template: "Weekly Update - {week_start} to {week_end}"
 
 # Timezone
-timezone: "Asia/Shanghai" # China Time
-
-# Daily todo file naming pattern
-daily_todo_filename_pattern: "%Y-%m-%d.txt"
+timezone: "Asia/Shanghai"  # Your timezone
 ```
 
 ### 3. Setup Notion Integration
@@ -90,7 +82,15 @@ daily_todo_filename_pattern: "%Y-%m-%d.txt"
 3. Share your project database and daily log page with the integration
 4. Copy the database/page IDs to your config
 
-### 4. Test Configuration
+### 4. Setup iCloud Access
+
+1. Go to https://appleid.apple.com
+2. Sign in with your Apple ID
+3. Under "Security", click "Generate Password" for app-specific passwords
+4. Enter a name (e.g., "Notion Helper") and copy the generated password
+5. Add the password to your config file
+
+### 5. Test Configuration
 
 ```bash
 python main.py test-config
@@ -123,44 +123,7 @@ python main.py setup-cron
 ./setup_cron.sh
 ```
 
-## Supported Todo Formats
-
-The tool supports multiple todo list formats:
-
-### Checkbox Format
-
-```
-- [x] Completed task
-- [ ] Pending task
-- [x] [ProjectName] Task with project tag
-```
-
-### Strikethrough Format
-
-```
-- ~~Completed task~~
-- Pending task
-- ~~@ProjectName Task with project mention~~
-```
-
-### Project Categorization
-
-Tasks are automatically categorized by project using these patterns:
-
--   `[ProjectName]` - Square brackets
--   `@ProjectName` - @ mentions
--   `#ProjectName` - Hash tags
--   `- ProjectName:` - Colon format
-
-If no project is detected, tasks are categorized by keywords:
-
--   **Meetings**: meeting, call, standup
--   **Communication**: email, respond, reply
--   **Development**: code, develop, implement, fix, bug
--   **Documentation**: review, document, write
--   **General**: everything else
-
-## File Structure
+## Project Structure
 
 ```
 notion_helper/
@@ -168,62 +131,14 @@ notion_helper/
 ├── config.yaml            # Configuration template
 ├── email_template.txt     # Email template
 ├── requirements.txt       # Python dependencies
-├── setup_cron.sh          # Cron setup script
+├── setup_cron.sh         # Cron setup script
 ├── src/
 │   ├── __init__.py
 │   ├── config.py          # Configuration management
-│   ├── todo_parser.py     # Daily todo parsing
-│   ├── notion_client.py   # Notion API integration
+│   ├── notion_api.py      # Notion API integration
 │   ├── email_generator.py # Email report generation
 │   └── calendar_sync.py   # Calendar synchronization
 └── README.md
-```
-
-## Workflow Overview
-
-### Weekly Automation Process
-
-1. **Parse Last Week's Todos** (Monday-Sunday)
-
-    - Scan daily todo files for completed tasks
-    - Extract and categorize by project
-    - Group by completion date
-
-2. **Update Notion Database**
-
-    - Find or create project pages
-    - Append weekly summaries to project pages
-    - Update daily log page with consolidated view
-
-3. **Generate Email Report**
-
-    - Create professional weekly update email
-    - Group tasks by project and date
-    - Save draft for review and sending
-
-4. **Sync Next Week's Calendar**
-    - Parse iCalendar file for upcoming events
-    - Convert events to todo items
-    - Update daily todo files with calendar events
-
-### Daily Todo File Example
-
-```
-# 2023-12-01.txt
-
-## Work Tasks
-- [x] [WebApp] Fix login bug
-- [x] [WebApp] Update user dashboard
-- [ ] [API] Implement new endpoint
-
-## Meetings
-- [x] 09:00-10:00: Team standup
-- [ ] 14:00-15:00: Client review
-
-# Calendar Events
-- [ ] 10:00-11:00: Project planning meeting
-- [ ] 15:30: Code review session
-# End Calendar Events
 ```
 
 ## Troubleshooting
@@ -231,27 +146,19 @@ notion_helper/
 ### Common Issues
 
 1. **Notion Connection Failed**
+   - Verify integration token is correct
+   - Ensure database/page is shared with integration
+   - Check database/page IDs in config
 
-    - Verify integration token is correct
-    - Ensure database/page is shared with integration
-    - Check database/page IDs in config
+2. **iCloud Calendar Sync Issues**
+   - Verify iCloud credentials
+   - Check app-specific password
+   - Ensure calendar access is enabled
 
-2. **No Todo Files Found**
-
-    - Verify `daily_todos_dir` path in config
-    - Check filename pattern matches your files
-    - Ensure files exist for the target week
-
-3. **Calendar Sync Issues**
-
-    - Verify iCalendar file path and format
-    - Check timezone settings
-    - Ensure file is readable
-
-4. **Cron Job Not Running**
-    - Check cron service is running: `sudo service cron status`
-    - Verify cron job: `crontab -l`
-    - Check logs: `tail -f ~/.notion_helper/automation.log`
+3. **Cron Job Not Running**
+   - Check cron service is running: `sudo service cron status`
+   - Verify cron job: `crontab -l`
+   - Check logs: `tail -f ~/.notion_helper/automation.log`
 
 ### Debug Mode
 

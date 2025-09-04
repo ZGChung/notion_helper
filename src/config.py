@@ -54,14 +54,14 @@ class Config:
         return self._config["notion"]["daily_log_page_id"]
 
     @property
-    def daily_todos_dir(self) -> Path:
-        """Get daily todos directory path."""
-        return Path(self._config["paths"]["daily_todos_dir"])
+    def icloud_username(self) -> str:
+        """Get iCloud username."""
+        return self._config["icloud"]["username"]
 
     @property
-    def ical_file(self) -> Path:
-        """Get iCalendar file path."""
-        return Path(self._config["paths"]["ical_file"])
+    def icloud_password(self) -> str:
+        """Get iCloud app-specific password."""
+        return self._config["icloud"]["password"]
 
     @property
     def email_template_file(self) -> Path:

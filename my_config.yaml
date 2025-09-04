@@ -7,10 +7,13 @@ notion:
     project_database_id: "14a09df71e7380ccaf70d9460b678570"
     daily_log_page_id: "1fc09df71e738085b028e4e720c53e7e"
 
+# iCloud configuration
+icloud:
+    username: "YOUR_ICLOUD_EMAIL"
+    password: "YOUR_APP_SPECIFIC_PASSWORD"  # Generate from Apple ID settings
+
 # File paths
 paths:
-    daily_todos_dir: "~/Documents/DailyTodos" # Directory containing your daily todo files
-    ical_file: "~/Documents/calendar.ics" # Path to your iCalendar file
     email_template: "email_template.txt" # Email template file
 
 # Email configuration
