@@ -125,9 +125,9 @@ class EmailGenerator:
         # Remove *italic* and _italic_
         text = re.sub(r"\*(.*?)\*", r"\1", text)
         text = re.sub(r"_(.*?)_", r"\1", text)
-        
+
         # Remove any "Remark:" sections (fallback if AI includes them)
-        text = re.sub(r'\nRemark:.*?(?=\n\nBest regards|$)', '', text, flags=re.DOTALL)
+        text = re.sub(r"\nRemark:.*?(?=\n\nBest regards|$)", "", text, flags=re.DOTALL)
 
         return text
 
@@ -172,7 +172,7 @@ class EmailGenerator:
 
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(f"To: {email_content['to']}\n")
-            if email_content.get('cc'):
+            if email_content.get("cc"):
                 f.write(f"CC: {email_content['cc']}\n")
             f.write(f"From: {email_content['from']}\n")
             f.write(f"Subject: {email_content['subject']}\n")
