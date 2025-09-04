@@ -7,8 +7,7 @@ from typing import List, Dict, Tuple
 from dataclasses import dataclass
 
 from .config import get_config
-from notion_client import NotionClient
-
+from notion_client import Client
 
 @dataclass
 class TodoItem:
@@ -57,7 +56,7 @@ class TodoParser:
     
     def __init__(self):
         self.config = get_config()
-        self.notion_client = NotionClient(token=self.config.notion_token)
+        self.notion = Client(auth=self.config.notion_token)
     
     def fetch_daily_todos(self, date: datetime) -> List[TodoItem]:
         """Fetch daily todos from Notion page."""
@@ -65,24 +64,25 @@ class TodoParser:
         todos = []
         
         # Fetch the page content from Notion
-        page_content = self.notion_client.get_page_content(page_id)
+        page = self.notion.pages.retrieve(page_id=page_id)
         
         # Parse the content to extract todos
-        todos.extend(self._parse_notion_format(page_content, date))
+        todos.extend(self._parse_notion_format(page, date))
         
         return todos
     
-    def _parse_notion_format(self, content: str, date: datetime) -> List[TodoItem]:
+    def _parse_notion_format(self, page: dict, date: datetime) -> List[TodoItem]:
         """Parse Notion format for todos."""
         todos = []
         
-        # Example parsing logic for Notion format
-        # This needs to be customized based on actual Notion page structure
-        for line in content.split('\n'):
-            line = line.strip()
-            if line.startswith('- [ ]') or line.startswith('- [x]'):
-                completed = '[x]' in line
-                text = line.split(']', 1)[1].strip()
+        # Get the page content
+        blocks = self.notion.blocks.children.list(block_id=page['id'])
+        
+        # Parse blocks to find todo items
+        for block in blocks['results']:
+            if block['type'] == 'to_do':
+                text = block['to_do']['rich_text'][0]['text']['content']
+                completed = block['to_do']['checked']
                 todos.append(TodoItem(text=text, completed=completed, date=date))
         
         return todos
