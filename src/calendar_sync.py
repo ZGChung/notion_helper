@@ -13,7 +13,7 @@ from .config import get_config
 
 class CalendarEvent:
     """Represents a calendar event."""
-
+    
     def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
         self.title = title
         self.start = start
@@ -40,7 +40,7 @@ class CalendarEvent:
 
 class CalendarSync:
     """iCloud Calendar sync functionality."""
-
+    
     def __init__(self):
         self.config = get_config()
         # Connect to both iCloud and Apple Calendar
@@ -50,8 +50,9 @@ class CalendarSync:
             password=self.config.icloud_password
         )
         # Apple Calendar uses a different URL
+        username_prefix = self.config.icloud_username.split('@')[0]
         self.apple_client = caldav.DAVClient(
-            url="https://calendar.icloud.com",  # Main Apple Calendar endpoint
+            url=f"https://p{username_prefix}-calendarws.icloud.com",  # Apple Calendar Web Service endpoint
             username=self.config.icloud_username,
             password=self.config.icloud_password
         )
@@ -134,13 +135,13 @@ class CalendarSync:
                     except Exception as e:
                         print(f"    Error fetching events from calendar: {e}")
                         continue
-                        
-            except Exception as e:
+        
+        except Exception as e:
                 print(f"Error accessing {client_name} calendars: {e}")
         
         print(f"\nTotal events found across all calendars: {len(events)}")
         return events
-
+    
     def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
         """Sync calendar events to Notion for the specified date range."""
         events = self.fetch_calendar_events(start_date, end_date)
@@ -218,12 +219,12 @@ class CalendarSync:
             preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
 
         return preview
-
+    
     def sync_next_week(self) -> None:
         """Sync next week's calendar events."""
         today = datetime.now()
         days_until_monday = 7 - today.weekday()
         next_monday = today + timedelta(days=days_until_monday)
         next_sunday = next_monday + timedelta(days=6)
-
+        
         self.sync_to_notion(next_monday, next_sunday)
