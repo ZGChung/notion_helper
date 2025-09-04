@@ -61,20 +61,61 @@ class CalendarSync:
             # Get calendar service
             calendar = self.api.calendar
             
-            # Try to get events
+            # Debug: Print calendar object details
+            print("\nCalendar service details:")
+            print(f"Type: {type(calendar)}")
+            print(f"Available attributes: {dir(calendar)}")
+            
+            # Try to get all calendars
             try:
-                print("Fetching events...")
+                print("\nTrying to access calendars...")
+                if hasattr(calendar, 'calendars'):
+                    print("Found calendars attribute!")
+                    for cal_id, cal in calendar.calendars.items():
+                        print(f"Calendar: {cal_id}")
+                        print(f"  Title: {getattr(cal, 'title', 'Unknown')}")
+                        print(f"  Type: {type(cal)}")
+                        print(f"  Attributes: {dir(cal)}")
+                else:
+                    print("No calendars attribute found")
+                
+                if hasattr(calendar, 'list'):
+                    print("\nTrying calendar.list()...")
+                    cal_list = calendar.list()
+                    print(f"List result: {cal_list}")
+            except Exception as e:
+                print(f"Error accessing calendar list: {e}")
+            
+            # Try to get events from all sources
+            try:
+                print("\nFetching events...")
+                
+                # Try direct events
                 raw_events = calendar.get_events(start_date, end_date)
+                print(f"\nDirect events found: {len(raw_events)}")
                 
-                print(f"Found {len(raw_events)} events")
-                
+                # Process events
                 for event in raw_events:
                     try:
+                        # Debug: Print event details
+                        print(f"\nEvent details:")
+                        print(f"Type: {type(event)}")
+                        if isinstance(event, dict):
+                            print(f"Keys: {event.keys()}")
+                        else:
+                            print(f"Attributes: {dir(event)}")
+                        
                         # Extract event data
-                        title = event.get('title')
-                        start = event.get('startDate')
-                        end = event.get('endDate')
-                        calendar_name = event.get('calendar', {}).get('title', 'Calendar')
+                        if isinstance(event, dict):
+                            title = event.get('title')
+                            start = event.get('startDate')
+                            end = event.get('endDate')
+                            calendar_name = event.get('calendar', {}).get('title', 'Calendar')
+                        else:
+                            title = getattr(event, 'title', None)
+                            start = getattr(event, 'startDate', None)
+                            end = getattr(event, 'endDate', None)
+                            calendar_name = getattr(getattr(event, 'calendar', None), 'title', 'Calendar')
                         
                         # Parse dates
                         if isinstance(start, (list, tuple)):
