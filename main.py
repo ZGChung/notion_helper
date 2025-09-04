@@ -11,6 +11,7 @@ This script automates your todo list workflow by:
 Usage:
     python main.py weekly-automation    # Run full weekly automation (steps 1-3)
     python main.py sync-calendar       # Sync next week's calendar events
+    python main.py sync-todos          # Sync todos with prefixes to project pages
     python main.py generate-email      # Generate weekly email only
     python main.py update-notion       # Update Notion only
     python main.py test-config         # Test configuration and connections
@@ -205,6 +206,45 @@ def update_notion():
 
     except Exception as e:
         click.echo(f"❌ Error updating Notion: {e}")
+        sys.exit(1)
+
+
+@cli.command()
+def sync_todos():
+    """Sync todos with prefixes to their corresponding project pages."""
+    click.echo("🔄 Syncing todos to project pages...")
+
+    try:
+        parser = TodoParser()
+        
+        # Get projects first to show available prefixes
+        projects = parser.get_projects()
+        if not projects:
+            click.echo("   ⚠️  No projects found in database")
+            return
+        
+        click.echo(f"   📋 Found {len(projects)} projects with prefixes:")
+        for prefix, project in projects.items():
+            click.echo(f"      [{prefix}] -> {project['name']}")
+        
+        # Sync todos to projects
+        sync_results = parser.sync_todos_to_projects()
+        
+        if not sync_results:
+            click.echo("   ℹ️  No todos with matching prefixes found")
+            return
+        
+        total_synced = sum(sync_results.values())
+        click.echo(f"   ✅ Successfully synced {total_synced} todos to {len(sync_results)} projects")
+        
+        for project_name, count in sync_results.items():
+            if count > 0:
+                click.echo(f"      {project_name}: {count} todos")
+        
+    except Exception as e:
+        click.echo(f"   ❌ Error syncing todos: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
