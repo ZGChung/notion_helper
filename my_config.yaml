@@ -4,8 +4,8 @@
 # Notion API Configuration
 notion:
     token: "ntn_y26502180996waFjb6p8J9uyXlpykYVhrcn5f3g4tfaaq0"
-    project_database_id: "14a09df71e7380ccaf70d9460b678570"
-    daily_log_page_id: "1fc09df71e738085b028e4e720c53e7e"
+    project_database_id: "14a09df7-1e73-80cc-af70-d9460b678570"
+    daily_log_page_id: "1fc09df7-1e73-8085-b028-e4e720c53e7e"
 
 # File paths
 paths:

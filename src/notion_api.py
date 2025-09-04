@@ -224,15 +224,15 @@ class NotionClient:
             # Try to get user info
             user = self.client.users.me()
             print(f"Connected to Notion as: {user.get('name', 'Unknown')}")
-            
+
             # Test database access
             self.client.databases.retrieve(database_id=self.config.project_database_id)
             print("Successfully accessed project database")
-            
+
             # Test page access
             self.client.pages.retrieve(page_id=self.config.daily_log_page_id)
             print("Successfully accessed daily log page")
-            
+
             return True
         except Exception as e:
             print(f"Failed to connect to Notion: {str(e)}")
