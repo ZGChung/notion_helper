@@ -33,79 +33,67 @@ class Config:
 
         return config
 
+    # -------------------------------
+    # Notion API
+    # -------------------------------
     @property
     def notion_token(self) -> str:
-        """Get Notion API token."""
         return self._config["notion"]["token"]
 
     @property
-    def notion_daily_log_page_id(self) -> str:
-        """Get Notion daily log page ID."""
-        return self._config["notion"]["daily_log_page_id"]
-
-    @property
     def project_database_id(self) -> str:
-        """Get Notion project database ID."""
         return self._config["notion"]["project_database_id"]
 
     @property
     def daily_log_page_id(self) -> str:
-        """Get Notion daily log page ID."""
         return self._config["notion"]["daily_log_page_id"]
 
+    # -------------------------------
+    # iCloud CalDAV
+    # -------------------------------
     @property
     def icloud_username(self) -> str:
-        """Get iCloud username."""
         return self._config["icloud"]["username"]
 
     @property
-    def icloud_password(self) -> str:
-        """Get iCloud app-specific password."""
-        return self._config["icloud"]["password"]
+    def icloud_app_password(self) -> str:
+        """Get iCloud app-specific password (not Apple ID password)."""
+        return self._config["icloud"]["app_password"]
 
     @property
     def icloud_calendars(self) -> Optional[List[str]]:
-        """Get list of calendars to sync.
-        
-        Returns:
-            List of calendar names to sync, or None if not configured.
-            Empty list means sync all calendars.
-        """
-        try:
-            return self._config["icloud"]["calendars"]
-        except KeyError:
-            return None
+        """List of calendars to sync (empty list = all)."""
+        return self._config["icloud"].get("calendars")
 
+    # -------------------------------
+    # Email & Paths
+    # -------------------------------
     @property
     def email_template_file(self) -> Path:
-        """Get email template file path."""
         return Path(self._config["paths"]["email_template"])
 
     @property
     def your_name(self) -> str:
-        """Get your name for email signature."""
         return self._config["email"]["your_name"]
 
     @property
     def email_subject_template(self) -> str:
-        """Get email subject template."""
         return self._config["email"]["subject_template"]
 
     @property
     def timezone(self) -> str:
-        """Get timezone setting."""
         return self._config["timezone"]
 
     def email_to_list(self) -> List[str]:
-        """Get email destination list."""
         return self._config["email"]["to_list"]
 
     def email_cc_list(self) -> List[str]:
-        """Get email CC list."""
         return self._config["email"]["cc_list"]
 
+    # -------------------------------
+    # Generic getter
+    # -------------------------------
     def get(self, key: str, default=None):
-        """Get configuration value by key."""
         keys = key.split(".")
         value = self._config
         for k in keys:

@@ -10,8 +10,8 @@ notion:
 # iCloud configuration
 icloud:
     username: "your_icloud_email@example.com"
-    password: "your_app_specific_password"  # Generate from Apple ID settings
-    calendars:  # List of calendar names to sync (empty list means all calendars)
+    app_password: "your_app_specific_password" # 注意改成 app_password，专用密码
+    calendars: # List of calendar names to sync (empty list means all calendars)
         - "Calendar"
         - "Work"
         - "Personal"
