@@ -19,16 +19,12 @@ class CalendarEvent:
 
     def to_notion_todo(self) -> Dict[str, Any]:
         """Convert calendar event to Notion todo block."""
-        time_str = self.start.strftime("%H:%M")
-        if self.end:
-            time_str += f"-{self.end.strftime('%H:%M')}"
-
         return {
             "object": "block",
             "type": "to_do",
             "to_do": {
                 "rich_text": [
-                    {"type": "text", "text": {"content": f"{self.title} at {time_str}"}}
+                    {"type": "text", "text": {"content": self.title}}
                 ],
                 "checked": False,
             },
