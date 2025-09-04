@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .config import get_config
 from .todo_parser import TodoItem
+import appscript
 
 
 class EmailGenerator:
@@ -55,6 +56,19 @@ class EmailGenerator:
             f.write(email_content['body'])
         
         return str(output_file)
+    
+    def save_email_draft_in_mail_app(self, email_content: Dict[str, str]) -> None:
+        """Save email draft directly in the Mail app."""
+        mail = appscript.app('Mail')
+        draft = mail.make(new=appscript.k.outgoing_message, with_properties={
+            appscript.k.subject: email_content['subject'],
+            appscript.k.content: email_content['body'],
+            appscript.k.visible: True
+        })
+        draft.sender.set(mail.accounts[0])
+        draft.to_recipients.set([appscript.k.to_recipient(email_content['to'])])
+        draft.cc_recipients.set([appscript.k.cc_recipient(cc) for cc in email_content.get('cc', [])])
+        draft.save()
     
     def _load_email_template(self) -> str:
         """Load email template from file if it exists."""

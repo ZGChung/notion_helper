@@ -1,0 +1,27 @@
+# Configuration file for Notion Helper
+# Copy this to config.yaml and fill in your actual values
+
+# Notion API Configuration
+notion:
+    token: "YOUR_NOTION_INTEGRATION_TOKEN"
+    project_database_id: "YOUR_PROJECT_DATABASE_ID"
+    daily_log_page_id: "YOUR_DAILY_LOG_PAGE_ID"
+
+# File paths
+paths:
+    daily_todos_dir: "~/Documents/DailyTodos" # Directory containing your daily todo files
+    ical_file: "~/Documents/calendar.ics" # Path to your iCalendar file
+    email_template: "email_template.txt" # Email template file
+
+# Email configuration
+email:
+    boss_email: "boss@company.com"
+    your_name: "Jayson Zhong"
+    subject_template: "Weekly Update - {week_start} to {week_end}"
+
+# Timezone
+timezone: "Asia/Shanghai" # China Time
+
+# Daily todo file naming pattern
+# Supports strftime format, e.g., "%Y-%m-%d.txt" for "2023-12-01.txt"
+daily_todo_filename_pattern: "%Y-%m-%d.txt"

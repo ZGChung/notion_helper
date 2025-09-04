@@ -33,10 +33,13 @@ class Config:
         
         return config
     
-    @property
     def notion_token(self) -> str:
         """Get Notion API token."""
         return self._config['notion']['token']
+
+    def notion_daily_log_page_id(self) -> str:
+        """Get Notion daily log page ID."""
+        return self._config['notion']['daily_log_page_id']
     
     @property
     def project_database_id(self) -> str:
