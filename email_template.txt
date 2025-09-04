@@ -1,0 +1,12 @@
+Hi,
+
+Here's my weekly update for {week_start} - {week_end}:
+
+{project_summaries}
+
+**Summary:** Completed {total_tasks} tasks across {project_count} projects this week.
+
+Let me know if you have any questions!
+
+Best regards,
+{your_name}

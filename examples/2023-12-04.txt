@@ -1,0 +1,21 @@
+# Monday, December 4, 2023
+
+## Work Tasks
+- [x] [WebApp] Fix login authentication bug
+- [x] [WebApp] Update user dashboard with new metrics
+- [ ] [API] Implement new user endpoint
+- [x] [Documentation] Update API documentation
+
+## Meetings
+- [x] 09:00-10:00: Team standup meeting
+- [x] 14:00-15:00: Client review session
+- [ ] 16:00-17:00: Sprint planning
+
+## Personal
+- [x] Review quarterly goals
+- [ ] Schedule dentist appointment
+
+# Calendar Events
+- [ ] 10:00-11:00: Project planning meeting
+- [ ] 15:30: Code review session
+# End Calendar Events
