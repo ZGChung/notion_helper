@@ -2,9 +2,11 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Union
-import pyicloud
+import caldav
 from notion_client import Client
 import dateutil.parser
+import recurring_ical_events
+from icalendar import Calendar
 
 from .config import get_config
 
@@ -41,11 +43,11 @@ class CalendarSync:
 
     def __init__(self):
         self.config = get_config()
-        # Use global endpoint since China endpoint has issues
-        self.api = pyicloud.PyiCloudService(
-            self.config.icloud_username,
-            self.config.icloud_password,
-            china_mainland=False,  # Use global endpoint
+        # Connect to iCloud Calendar using CalDAV
+        self.client = caldav.DAVClient(
+            url="https://caldav.icloud.com",
+            username=self.config.icloud_username,
+            password=self.config.icloud_password
         )
         self.notion = Client(auth=self.config.notion_token)
 
@@ -53,115 +55,81 @@ class CalendarSync:
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
         """Fetch calendar events from all iCloud calendars."""
-        calendar = self.api.calendar
         events = []
-
+        
         print("\nFetching events from iCloud calendars...")
         
-        # Try different methods to get calendars
         try:
-            print("Attempting to get all calendars...")
-            # Try to get raw calendar data first
-            raw_calendars = calendar.get("Calendar", [])
-            print(f"Found {len(raw_calendars)} calendars in raw data:")
-            for cal in raw_calendars:
-                print(f"  • {cal.get('title', 'Unknown')}")
+            # Get the principal (main calendar user)
+            principal = self.client.principal()
             
-            # Try to get calendars through the API
-            if hasattr(calendar, 'calendars'):
-                print("\nFound calendars through API:")
-                for cal_id, cal in calendar.calendars.items():
-                    print(f"  • Calendar ID: {cal_id}")
-                    print(f"    Title: {getattr(cal, 'title', 'Unknown')}")
-                raw_calendars = calendar.calendars.values()
+            # Get all calendars
+            calendars = principal.calendars()
+            print(f"Found {len(calendars)} calendars:")
             
-            # If both failed, try direct events
-            if not raw_calendars:
-                print("\nNo calendars found, trying direct event access...")
-                raw_calendars = [calendar]
-        except Exception as e:
-            print(f"Error getting calendars: {e}")
-            print("Falling back to main calendar...")
-            raw_calendars = [calendar]
-
-        # Process each calendar
-        for cal in raw_calendars:
-            calendar_name = None
-            if isinstance(cal, dict):
-                calendar_name = cal.get('title')
-            else:
-                calendar_name = getattr(cal, 'title', None)
+            # Define the calendars we want to fetch from
+            target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
             
-            print(f"\nProcessing calendar: {calendar_name or 'Main Calendar'}")
-            
-            # Get events from calendar
-            try:
-                if isinstance(cal, dict):
-                    raw_events = cal.get("Event", [])
-                else:
-                    try:
-                        raw_events = cal.get_events(start_date, end_date)
-                    except AttributeError:
+            for calendar in calendars:
+                calendar_name = calendar.name
+                print(f"  • {calendar_name}")
+                
+                # Only process calendars we're interested in
+                if calendar_name not in target_calendars:
+                    print(f"    Skipping (not in target calendars)")
+                    continue
+                
+                print(f"    Fetching events...")
+                
+                try:
+                    # Get events in the date range
+                    events_in_calendar = calendar.search(
+                        start=start_date,
+                        end=end_date,
+                        event=True,
+                        expand=True  # Expand recurring events
+                    )
+                    
+                    print(f"    Found {len(events_in_calendar)} events")
+                    
+                    for event in events_in_calendar:
                         try:
-                            raw_events = cal.events
-                        except AttributeError:
-                            raw_events = getattr(cal, "Event", [])
-
-                print(f"Found {len(raw_events) if isinstance(raw_events, list) else '?'} events")
-
-                # Process events
-                for event in raw_events:
-                    # Handle different event formats
-                    if isinstance(event, dict):
-                        title = event.get("title") or event.get("summary")
-                        start = event.get("startDate") or event.get("start")
-                        end = event.get("endDate") or event.get("end")
-                    else:
-                        # If event is an object
-                        title = getattr(event, "title", None) or getattr(event, "summary", None)
-                        start = getattr(event, "startDate", None) or getattr(
-                            event, "start", None
-                        )
-                        end = getattr(event, "endDate", None) or getattr(event, "end", None)
-
-                    # Parse dates if needed
-                    try:
-                        if isinstance(start, (list, tuple)):
-                            # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
-                            year = start[1]
-                            month = start[2]
-                            day = start[3]
-                            hour = start[4]
-                            minute = start[5]
-                            start = datetime(year, month, day, hour, minute)
-                        
-                        if isinstance(end, (list, tuple)):
-                            year = end[1]
-                            month = end[2]
-                            day = end[3]
-                            hour = end[4]
-                            minute = end[5]
-                            end = datetime(year, month, day, hour, minute)
-                        
-                        elif isinstance(start, str):
-                            start = dateutil.parser.parse(start)
-                        elif isinstance(end, str):
-                            end = dateutil.parser.parse(end)
-
-                        if title and start:
-                            print(f"  • Adding event: {title}")
-                            events.append(CalendarEvent(
-                                title=title,
-                                start=start,
-                                end=end,
-                                calendar_name=calendar_name
-                            ))
-                    except Exception as e:
-                        print(f"Error processing event: {e}")
-
-            except Exception as e:
-                print(f"Error getting events from calendar: {e}")
-
+                            # Parse the event data
+                            ical = event.icalendar()
+                            for component in ical.walk('VEVENT'):
+                                title = str(component.get('summary', 'No Title'))
+                                start = component.get('dtstart').dt
+                                end = component.get('dtend').dt if component.get('dtend') else None
+                                
+                                # Convert to datetime if date
+                                if hasattr(start, 'date'):
+                                    start = start
+                                else:
+                                    start = datetime.combine(start, datetime.min.time())
+                                
+                                if end and hasattr(end, 'date'):
+                                    end = end
+                                elif end:
+                                    end = datetime.combine(end, datetime.min.time())
+                                
+                                print(f"      • {title}")
+                                events.append(CalendarEvent(
+                                    title=title,
+                                    start=start,
+                                    end=end,
+                                    calendar_name=calendar_name
+                                ))
+                        except Exception as e:
+                            print(f"      Error processing event: {e}")
+                            continue
+                            
+                except Exception as e:
+                    print(f"    Error fetching events from calendar: {e}")
+                    continue
+                    
+        except Exception as e:
+            print(f"Error accessing calendars: {e}")
+        
         print(f"\nTotal events found across all calendars: {len(events)}")
         return events
 
