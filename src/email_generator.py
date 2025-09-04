@@ -36,9 +36,9 @@ class EmailGenerator:
             if api_key and api_key != "YOUR_DEEPSEEK_API_KEY":
                 # Create client with explicit parameters
                 import openai
+
                 client = openai.OpenAI(
-                    api_key=api_key,
-                    base_url="https://api.deepseek.com/v1"
+                    api_key=api_key, base_url="https://api.deepseek.com/v1"
                 )
                 return client
             else:
@@ -51,6 +51,7 @@ class EmailGenerator:
             # Try alternative initialization
             try:
                 import openai
+
                 openai.api_key = api_key
                 openai.api_base = "https://api.deepseek.com/v1"
                 return openai
