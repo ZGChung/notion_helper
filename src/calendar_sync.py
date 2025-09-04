@@ -95,11 +95,10 @@ class CalendarSync:
                     for event in events_in_calendar:
                         try:
                             # Parse the event data
-                            ical = event.icalendar()
-                            for component in ical.walk('VEVENT'):
-                                title = str(component.get('summary', 'No Title'))
-                                start = component.get('dtstart').dt
-                                end = component.get('dtend').dt if component.get('dtend') else None
+                            event_data = event.instance.vevent
+                            title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
+                            start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
+                            end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
                                 
                                 # Convert to datetime if date
                                 if hasattr(start, 'date'):
