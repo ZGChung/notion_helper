@@ -71,7 +71,7 @@ def weekly_automation():
 
         # Step 3: Generate weekly email based on completed tasks
         click.echo("📧 Generating weekly email...")
-        week_start, week_end = parser.get_last_week_range()
+        week_start, week_end = parser.get_current_week_range()
         
         click.echo(
             f"   Week range: {week_start.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}"
@@ -151,9 +151,9 @@ def generate_email():
     click.echo("📧 Generating weekly email...")
 
     try:
-        # Parse last week's todos
+        # Parse current week's todos (since this runs on Friday)
         parser = TodoParser()
-        week_start, week_end = parser.get_last_week_range()
+        week_start, week_end = parser.get_current_week_range()
 
         todos = parser.parse_week_files(week_start)
         completed_by_project = parser.get_completed_tasks_by_project(todos)

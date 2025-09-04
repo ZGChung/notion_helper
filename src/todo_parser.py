@@ -302,6 +302,17 @@ class TodoParser:
 
         return completed_by_project
 
+    def get_current_week_range(self) -> Tuple[datetime, datetime]:
+        """Get the date range for current week (Monday to Sunday)."""
+        today = datetime.now()
+
+        # Find this Monday
+        days_since_monday = today.weekday()  # Monday = 0, Sunday = 6
+        this_monday = today - timedelta(days=days_since_monday)
+        this_sunday = this_monday + timedelta(days=6)
+
+        return this_monday, this_sunday
+
     def get_last_week_range(self) -> Tuple[datetime, datetime]:
         """Get the date range for last week (Monday to Sunday)."""
         today = datetime.now()
