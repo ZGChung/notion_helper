@@ -2,19 +2,16 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Union
-import caldav
+import pyicloud
 from notion_client import Client
 import dateutil.parser
-import recurring_ical_events
-from icalendar import Calendar
-import requests
 
 from .config import get_config
 
 
 class CalendarEvent:
     """Represents a calendar event."""
-    
+
     def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
         self.title = title
         self.start = start
@@ -41,14 +38,14 @@ class CalendarEvent:
 
 class CalendarSync:
     """iCloud Calendar sync functionality."""
-    
+
     def __init__(self):
         self.config = get_config()
         # Connect to iCloud Calendar
-        self.icloud_client = caldav.DAVClient(
-            url="https://caldav.icloud.com",
-            username=self.config.icloud_username,
-            password=self.config.icloud_password
+        self.api = pyicloud.PyiCloudService(
+            self.config.icloud_username,
+            self.config.icloud_password,
+            china_mainland=False  # Use global endpoint
         )
         self.notion = Client(auth=self.config.notion_token)
 
@@ -60,132 +57,64 @@ class CalendarSync:
         
         print("\nFetching events from calendars...")
         
-        # Try to get all calendars
         try:
-            print("\nAccessing calendars...")
-            # Get the principal (main calendar user)
-            principal = self.icloud_client.principal()
+            # Get calendar service
+            calendar = self.api.calendar
             
-            # Get all calendars
-            calendars = principal.calendars()
-            print(f"Found {len(calendars)} calendars:")
-            
-            # Define the calendars we want to fetch from
-            target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
-            
-            for calendar in calendars:
-                calendar_name = calendar.name
-                print(f"  • {calendar_name}")
+            # Try to get events
+            try:
+                print("Fetching events...")
+                raw_events = calendar.events(
+                    from_dt=start_date,
+                    to_dt=end_date
+                )
                 
-                # Only process calendars we're interested in
-                if calendar_name not in target_calendars:
-                    print(f"    Skipping (not in target calendars)")
-                    continue
+                print(f"Found {len(raw_events)} events")
                 
-                print(f"    Fetching events...")
-                
-                try:
-                    # Get events in the date range
-                    events_in_calendar = calendar.search(
-                        start=start_date,
-                        end=end_date,
-                        event=True,
-                        expand=True  # Expand recurring events
-                    )
-                    
-                    print(f"    Found {len(events_in_calendar)} events")
-                    
-                    for event in events_in_calendar:
-                        try:
-                            # Parse the event data
-                            event_data = event.instance.vevent
-                            title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
-                            start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
-                            end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
-                            
-                            # Convert to datetime if date
-                            if hasattr(start, 'date'):
-                                start = start
-                            else:
-                                start = datetime.combine(start, datetime.min.time())
-                            
-                            if end and hasattr(end, 'date'):
-                                end = end
-                            elif end:
-                                end = datetime.combine(end, datetime.min.time())
-                            
-                            print(f"      • {title}")
-                            events.append(CalendarEvent(
-                                title=title,
-                                start=start,
-                                end=end,
-                                calendar_name=calendar_name
-                            ))
-                        except Exception as e:
-                            print(f"      Error processing event: {e}")
-                            continue
-                            
-                except Exception as e:
-                    print(f"    Error fetching events from calendar: {e}")
-                    continue
-                    
-        except Exception as e:
-            print(f"Error accessing calendars: {e}")
-        
-        # Try to access Apple Calendar directly
-        try:
-            print("\nTrying to access Apple Calendar directly...")
-            username_prefix = self.config.icloud_username.split('@')[0]
-            
-            # Try different possible endpoints
-            endpoints = [
-                f"https://p{username_prefix}-caldav.icloud.com/calendars/users/{self.config.icloud_username}",
-                f"https://p{username_prefix}-calendarws.icloud.com/calendars/users/{self.config.icloud_username}",
-                f"https://caldav.icloud.com/calendars/users/{self.config.icloud_username}"
-            ]
-            
-            for endpoint in endpoints:
-                try:
-                    print(f"  Trying endpoint: {endpoint}")
-                    response = requests.get(
-                        endpoint,
-                        auth=(self.config.icloud_username, self.config.icloud_password),
-                        headers={'Content-Type': 'text/calendar'},
-                        timeout=5
-                    )
-                    
-                    if response.status_code == 200:
-                        print("  Successfully connected!")
-                        # Parse calendar data
-                        cal = Calendar.from_ical(response.text)
-                        for component in cal.walk('VEVENT'):
-                            try:
-                                title = str(component.get('summary', 'No Title'))
-                                start = component.get('dtstart').dt
-                                end = component.get('dtend').dt if component.get('dtend') else None
-                                
-                                print(f"      • {title}")
-                                events.append(CalendarEvent(
-                                    title=title,
-                                    start=start,
-                                    end=end,
-                                    calendar_name="Apple Calendar"
-                                ))
-                            except Exception as e:
-                                print(f"      Error processing Apple Calendar event: {e}")
-                                continue
-                        break
-                    else:
-                        print(f"  Failed with status code: {response.status_code}")
+                for event in raw_events:
+                    try:
+                        # Extract event data
+                        title = event.get('title')
+                        start = event.get('startDate')
+                        end = event.get('endDate')
+                        calendar_name = event.get('calendar', {}).get('title', 'Calendar')
                         
-                except Exception as e:
-                    print(f"  Error with endpoint: {e}")
-                    continue
-        
+                        # Parse dates
+                        if isinstance(start, (list, tuple)):
+                            # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
+                            year = start[1]
+                            month = start[2]
+                            day = start[3]
+                            hour = start[4]
+                            minute = start[5]
+                            start = datetime(year, month, day, hour, minute)
+                        
+                        if isinstance(end, (list, tuple)):
+                            year = end[1]
+                            month = end[2]
+                            day = end[3]
+                            hour = end[4]
+                            minute = end[5]
+                            end = datetime(year, month, day, hour, minute)
+                        
+                        print(f"  • [{calendar_name}] {title}")
+                        events.append(CalendarEvent(
+                            title=title,
+                            start=start,
+                            end=end,
+                            calendar_name=calendar_name
+                        ))
+                    except Exception as e:
+                        print(f"    Error processing event: {e}")
+                        continue
+                        
+            except Exception as e:
+                print(f"Error fetching events: {e}")
+                
         except Exception as e:
-            print(f"Error accessing Apple Calendar: {e}")
+            print(f"Error accessing calendar service: {e}")
         
-        print(f"\nTotal events found across all calendars: {len(events)}")
+        print(f"\nTotal events found: {len(events)}")
         return events
 
     def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
@@ -236,7 +165,7 @@ class CalendarSync:
         if blocks:
             print(f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:")
             print(f"- Events under '{date_str}':")
-        for event in events:
+            for event in events:
                 calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
                 print(f"  • {calendar_info}{event.title}")
             
@@ -263,7 +192,7 @@ class CalendarSync:
             if event.end:
                 time_str += f"-{event.end.strftime('%H:%M')}"
             preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
-        
+
         return preview
 
     def sync_next_week(self) -> None:
