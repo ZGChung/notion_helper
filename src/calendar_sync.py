@@ -56,75 +56,113 @@ class CalendarSync:
         calendar = self.api.calendar
         events = []
 
-        # Get all available calendars
+        print("\nFetching events from iCloud calendars...")
+        
+        # Try different methods to get calendars
         try:
-            calendars = calendar.get_all_calendars()
-        except AttributeError:
-            # If get_all_calendars doesn't exist, try getting events directly
-            calendars = [calendar]  # Use main calendar as fallback
+            print("Attempting to get all calendars...")
+            # Try to get raw calendar data first
+            raw_calendars = calendar.get("Calendar", [])
+            print(f"Found {len(raw_calendars)} calendars in raw data:")
+            for cal in raw_calendars:
+                print(f"  • {cal.get('title', 'Unknown')}")
+            
+            # Try to get calendars through the API
+            if hasattr(calendar, 'calendars'):
+                print("\nFound calendars through API:")
+                for cal_id, cal in calendar.calendars.items():
+                    print(f"  • Calendar ID: {cal_id}")
+                    print(f"    Title: {getattr(cal, 'title', 'Unknown')}")
+                raw_calendars = calendar.calendars.values()
+            
+            # If both failed, try direct events
+            if not raw_calendars:
+                print("\nNo calendars found, trying direct event access...")
+                raw_calendars = [calendar]
+        except Exception as e:
+            print(f"Error getting calendars: {e}")
+            print("Falling back to main calendar...")
+            raw_calendars = [calendar]
 
         # Process each calendar
-        for cal in calendars:
-            calendar_name = getattr(cal, 'title', None)
+        for cal in raw_calendars:
+            calendar_name = None
+            if isinstance(cal, dict):
+                calendar_name = cal.get('title')
+            else:
+                calendar_name = getattr(cal, 'title', None)
+            
+            print(f"\nProcessing calendar: {calendar_name or 'Main Calendar'}")
             
             # Get events from calendar
             try:
-                raw_events = cal.get_events(start_date, end_date)
-            except AttributeError:
-                try:
-                    raw_events = cal.events
-                except AttributeError:
+                if isinstance(cal, dict):
                     raw_events = cal.get("Event", [])
-
-            # Process events
-            for event in raw_events:
-                # Handle different event formats
-                if isinstance(event, dict):
-                    title = event.get("title") or event.get("summary")
-                    start = event.get("startDate") or event.get("start")
-                    end = event.get("endDate") or event.get("end")
                 else:
-                    # If event is an object
-                    title = getattr(event, "title", None) or getattr(event, "summary", None)
-                    start = getattr(event, "startDate", None) or getattr(
-                        event, "start", None
-                    )
-                    end = getattr(event, "endDate", None) or getattr(event, "end", None)
+                    try:
+                        raw_events = cal.get_events(start_date, end_date)
+                    except AttributeError:
+                        try:
+                            raw_events = cal.events
+                        except AttributeError:
+                            raw_events = getattr(cal, "Event", [])
 
-                # Parse dates if needed
-                try:
-                    if isinstance(start, (list, tuple)):
-                        # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
-                        year = start[1]
-                        month = start[2]
-                        day = start[3]
-                        hour = start[4]
-                        minute = start[5]
-                        start = datetime(year, month, day, hour, minute)
-                    
-                    if isinstance(end, (list, tuple)):
-                        year = end[1]
-                        month = end[2]
-                        day = end[3]
-                        hour = end[4]
-                        minute = end[5]
-                        end = datetime(year, month, day, hour, minute)
-                    
-                    elif isinstance(start, str):
-                        start = dateutil.parser.parse(start)
-                    elif isinstance(end, str):
-                        end = dateutil.parser.parse(end)
+                print(f"Found {len(raw_events) if isinstance(raw_events, list) else '?'} events")
 
-                    if title and start:
-                        events.append(CalendarEvent(
-                            title=title,
-                            start=start,
-                            end=end,
-                            calendar_name=calendar_name
-                        ))
-                except Exception as e:
-                    print(f"Error processing event: {e}")
+                # Process events
+                for event in raw_events:
+                    # Handle different event formats
+                    if isinstance(event, dict):
+                        title = event.get("title") or event.get("summary")
+                        start = event.get("startDate") or event.get("start")
+                        end = event.get("endDate") or event.get("end")
+                    else:
+                        # If event is an object
+                        title = getattr(event, "title", None) or getattr(event, "summary", None)
+                        start = getattr(event, "startDate", None) or getattr(
+                            event, "start", None
+                        )
+                        end = getattr(event, "endDate", None) or getattr(event, "end", None)
 
+                    # Parse dates if needed
+                    try:
+                        if isinstance(start, (list, tuple)):
+                            # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
+                            year = start[1]
+                            month = start[2]
+                            day = start[3]
+                            hour = start[4]
+                            minute = start[5]
+                            start = datetime(year, month, day, hour, minute)
+                        
+                        if isinstance(end, (list, tuple)):
+                            year = end[1]
+                            month = end[2]
+                            day = end[3]
+                            hour = end[4]
+                            minute = end[5]
+                            end = datetime(year, month, day, hour, minute)
+                        
+                        elif isinstance(start, str):
+                            start = dateutil.parser.parse(start)
+                        elif isinstance(end, str):
+                            end = dateutil.parser.parse(end)
+
+                        if title and start:
+                            print(f"  • Adding event: {title}")
+                            events.append(CalendarEvent(
+                                title=title,
+                                start=start,
+                                end=end,
+                                calendar_name=calendar_name
+                            ))
+                    except Exception as e:
+                        print(f"Error processing event: {e}")
+
+            except Exception as e:
+                print(f"Error getting events from calendar: {e}")
+
+        print(f"\nTotal events found across all calendars: {len(events)}")
         return events
 
     def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
