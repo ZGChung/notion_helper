@@ -21,9 +21,7 @@ class CalendarEvent:
         self.calendar_name = calendar_name
 
     def to_notion_todo(self) -> Dict[str, Any]:
-        content = (
-            f"[{self.calendar_name}] {self.title}" if self.calendar_name else self.title
-        )
+        content = f"{self.title}" if self.calendar_name else self.title
         return {
             "object": "block",
             "type": "to_do",
@@ -214,7 +212,7 @@ class CalendarSync:
         for event in events:
             key = event.start.strftime("%Y-%m-%d")
             preview.setdefault(key, []).append(
-                f"[{event.calendar_name}] {event.title} at {event.start.strftime('%H:%M')}"
+                f"{event.title} at {event.start.strftime('%H:%M')}"
             )
 
         for n in range((end_date - start_date).days + 1):
@@ -224,7 +222,7 @@ class CalendarSync:
             for m_evt in manual_events:
                 key = single_date.strftime("%Y-%m-%d")
                 preview.setdefault(key, []).append(
-                    f"[Manual] {m_evt['title']} at {m_evt.get('time', '00:00-01:00')}"
+                    f"{m_evt['title']} at {m_evt.get('time', '00:00-01:00')}"
                 )
 
         # Sort keys and events
