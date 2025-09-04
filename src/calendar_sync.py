@@ -12,7 +12,7 @@ from .config import get_config
 
 class CalendarEvent:
     """Represents a calendar event."""
-
+    
     def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
         self.title = title
         self.start = start
@@ -39,7 +39,7 @@ class CalendarEvent:
 
 class CalendarSync:
     """iCloud Calendar sync functionality."""
-
+    
     def __init__(self):
         self.config = get_config()
         # Connect to iCloud Calendar
@@ -62,132 +62,72 @@ class CalendarSync:
             # Get calendar service
             calendar = self.api.calendar
             
-            # Try to get calendar collections
+            # Try to get events with calendar info
             try:
-                print("\nGetting calendar collections...")
-                collections_url = calendar._calendar_collections_url
-                print(f"Collections URL: {collections_url}")
-                response = calendar.session.get(collections_url)
-                collections = response.json().get('collections', [])
+                print("\nFetching events with calendar info...")
                 
-                print(f"Found {len(collections)} calendars:")
-                for collection in collections:
-                    print(f"  • {collection.get('title', 'Unknown')}")
-                    
-                # Get events from each calendar
-                for collection in collections:
-                    cal_title = collection.get('title', 'Unknown')
-                    cal_guid = collection.get('guid')
-                    
-                    if not cal_guid:
-                        continue
-                        
-                    print(f"\nFetching events from {cal_title}...")
-                    
+                # Get events
+                raw_events = calendar.get_events(start_date, end_date)
+                print(f"Found {len(raw_events)} events")
+                
+                # Track unique calendars
+                calendars_seen = set()
+                
+                # Process events
+                for event in raw_events:
                     try:
-                        # Get events for this calendar
-                        raw_events = calendar.get_events(
-                            from_dt=start_date,
-                            to_dt=end_date,
-                            pguid=cal_guid
-                        )
+                        # Extract event data
+                        title = event.get('title')
+                        start = event.get('startDate')
+                        end = event.get('endDate')
                         
-                        print(f"Found {len(raw_events)} events")
+                        # Get calendar info
+                        cal_info = event.get('calendar', {})
+                        cal_title = cal_info.get('title', 'Calendar')
                         
-                        # Process events
-                        for event in raw_events:
-                            try:
-                                # Extract event data
-                                title = event.get('title')
-                                start = event.get('startDate')
-                                end = event.get('endDate')
-                                
-                                # Parse dates
-                                if isinstance(start, (list, tuple)):
-                                    # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
-                                    year = start[1]
-                                    month = start[2]
-                                    day = start[3]
-                                    hour = start[4]
-                                    minute = start[5]
-                                    start = datetime(year, month, day, hour, minute)
-                                
-                                if isinstance(end, (list, tuple)):
-                                    year = end[1]
-                                    month = end[2]
-                                    day = end[3]
-                                    hour = end[4]
-                                    minute = end[5]
-                                    end = datetime(year, month, day, hour, minute)
-                                
-                                print(f"  • {title}")
-                                events.append(CalendarEvent(
-                                    title=title,
-                                    start=start,
-                                    end=end,
-                                    calendar_name=cal_title
-                                ))
-                            except Exception as e:
-                                print(f"    Error processing event: {e}")
-                                continue
-                                
+                        # Track unique calendars
+                        if cal_title not in calendars_seen:
+                            calendars_seen.add(cal_title)
+                            print(f"\nFound calendar: {cal_title}")
+                        
+                        # Parse dates
+                        if isinstance(start, (list, tuple)):
+                            # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
+                            year = start[1]
+                            month = start[2]
+                            day = start[3]
+                            hour = start[4]
+                            minute = start[5]
+                            start = datetime(year, month, day, hour, minute)
+                        
+                        if isinstance(end, (list, tuple)):
+                            year = end[1]
+                            month = end[2]
+                            day = end[3]
+                            hour = end[4]
+                            minute = end[5]
+                            end = datetime(year, month, day, hour, minute)
+                        
+                        print(f"  • [{cal_title}] {title}")
+                        events.append(CalendarEvent(
+                            title=title,
+                            start=start,
+                            end=end,
+                            calendar_name=cal_title
+                        ))
                     except Exception as e:
-                        print(f"Error fetching events from calendar: {e}")
+                        print(f"    Error processing event: {e}")
                         continue
                         
             except Exception as e:
-                print(f"Error getting calendar collections: {e}")
-                # Fallback to getting all events without calendar filtering
-                print("\nFalling back to getting all events...")
-                try:
-                    raw_events = calendar.get_events(start_date, end_date)
-                    print(f"Found {len(raw_events)} events")
-                    
-                    for event in raw_events:
-                        try:
-                            # Extract event data
-                            title = event.get('title')
-                            start = event.get('startDate')
-                            end = event.get('endDate')
-                            cal_title = event.get('calendar', {}).get('title', 'Calendar')
-                            
-                            # Parse dates
-                            if isinstance(start, (list, tuple)):
-                                year = start[1]
-                                month = start[2]
-                                day = start[3]
-                                hour = start[4]
-                                minute = start[5]
-                                start = datetime(year, month, day, hour, minute)
-                            
-                            if isinstance(end, (list, tuple)):
-                                year = end[1]
-                                month = end[2]
-                                day = end[3]
-                                hour = end[4]
-                                minute = end[5]
-                                end = datetime(year, month, day, hour, minute)
-                            
-                            print(f"  • [{cal_title}] {title}")
-                            events.append(CalendarEvent(
-                                title=title,
-                                start=start,
-                                end=end,
-                                calendar_name=cal_title
-                            ))
-                        except Exception as e:
-                            print(f"    Error processing event: {e}")
-                            continue
-                            
-                except Exception as e:
-                    print(f"Error fetching events: {e}")
-                
+                print(f"Error fetching events: {e}")
+        
         except Exception as e:
             print(f"Error accessing calendar service: {e}")
         
         print(f"\nTotal events found: {len(events)}")
         return events
-
+    
     def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
         """Sync calendar events to Notion for the specified date range."""
         events = self.fetch_calendar_events(start_date, end_date)
@@ -265,12 +205,12 @@ class CalendarSync:
             preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
 
         return preview
-
+    
     def sync_next_week(self) -> None:
         """Sync next week's calendar events."""
         today = datetime.now()
         days_until_monday = 7 - today.weekday()
         next_monday = today + timedelta(days=days_until_monday)
         next_sunday = next_monday + timedelta(days=6)
-
+        
         self.sync_to_notion(next_monday, next_sunday)
