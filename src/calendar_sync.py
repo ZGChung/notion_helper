@@ -43,9 +43,15 @@ class CalendarSync:
 
     def __init__(self):
         self.config = get_config()
-        # Connect to iCloud Calendar using CalDAV
-        self.client = caldav.DAVClient(
+        # Connect to both iCloud and Apple Calendar
+        self.icloud_client = caldav.DAVClient(
             url="https://caldav.icloud.com",
+            username=self.config.icloud_username,
+            password=self.config.icloud_password
+        )
+        # Apple Calendar uses a different URL
+        self.apple_client = caldav.DAVClient(
+            url=f"https://p{self.config.icloud_username.split('@')[0]}-caldav.icloud.com",
             username=self.config.icloud_username,
             password=self.config.icloud_password
         )
@@ -54,51 +60,54 @@ class CalendarSync:
     def fetch_calendar_events(
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
-        """Fetch calendar events from all iCloud calendars."""
+        """Fetch calendar events from all calendars."""
         events = []
         
-        print("\nFetching events from iCloud calendars...")
+        print("\nFetching events from calendars...")
         
-        try:
-            # Get the principal (main calendar user)
-            principal = self.client.principal()
-            
-            # Get all calendars
-            calendars = principal.calendars()
-            print(f"Found {len(calendars)} calendars:")
-            
-            # Define the calendars we want to fetch from
-            target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
-            
-            for calendar in calendars:
-                calendar_name = calendar.name
-                print(f"  • {calendar_name}")
+        # Try both clients to get all calendars
+        for client, client_name in [(self.icloud_client, "iCloud"), (self.apple_client, "Apple")]:
+            try:
+                print(f"\nTrying {client_name} calendars...")
+                # Get the principal (main calendar user)
+                principal = client.principal()
                 
-                # Only process calendars we're interested in
-                if calendar_name not in target_calendars:
-                    print(f"    Skipping (not in target calendars)")
-                    continue
+                # Get all calendars
+                calendars = principal.calendars()
+                print(f"Found {len(calendars)} calendars in {client_name}:")
                 
-                print(f"    Fetching events...")
+                # Define the calendars we want to fetch from
+                target_calendars = {"Calendar", "Personal", "Apple", "MD AI/ML COE"}
                 
-                try:
-                    # Get events in the date range
-                    events_in_calendar = calendar.search(
-                        start=start_date,
-                        end=end_date,
-                        event=True,
-                        expand=True  # Expand recurring events
-                    )
+                for calendar in calendars:
+                    calendar_name = calendar.name
+                    print(f"  • {calendar_name}")
                     
-                    print(f"    Found {len(events_in_calendar)} events")
+                    # Only process calendars we're interested in
+                    if calendar_name not in target_calendars:
+                        print(f"    Skipping (not in target calendars)")
+                        continue
                     
-                    for event in events_in_calendar:
-                        try:
-                            # Parse the event data
-                            event_data = event.instance.vevent
-                            title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
-                            start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
-                            end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
+                    print(f"    Fetching events...")
+                    
+                    try:
+                        # Get events in the date range
+                        events_in_calendar = calendar.search(
+                            start=start_date,
+                            end=end_date,
+                            event=True,
+                            expand=True  # Expand recurring events
+                        )
+                        
+                        print(f"    Found {len(events_in_calendar)} events")
+                        
+                        for event in events_in_calendar:
+                            try:
+                                # Parse the event data
+                                event_data = event.instance.vevent
+                                title = str(event_data.summary.value if hasattr(event_data, 'summary') else 'No Title')
+                                start = event_data.dtstart.value if hasattr(event_data, 'dtstart') else None
+                                end = event_data.dtend.value if hasattr(event_data, 'dtend') else None
                                 
                                 # Convert to datetime if date
                                 if hasattr(start, 'date'):
@@ -116,18 +125,18 @@ class CalendarSync:
                                     title=title,
                                     start=start,
                                     end=end,
-                                    calendar_name=calendar_name
+                                    calendar_name=f"{client_name}/{calendar_name}"
                                 ))
-                        except Exception as e:
-                            print(f"      Error processing event: {e}")
-                            continue
-                            
-                except Exception as e:
-                    print(f"    Error fetching events from calendar: {e}")
-                    continue
-                    
-        except Exception as e:
-            print(f"Error accessing calendars: {e}")
+                            except Exception as e:
+                                print(f"      Error processing event: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        print(f"    Error fetching events from calendar: {e}")
+                        continue
+                        
+            except Exception as e:
+                print(f"Error accessing {client_name} calendars: {e}")
         
         print(f"\nTotal events found across all calendars: {len(events)}")
         return events
