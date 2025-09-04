@@ -27,67 +27,66 @@ def run_applescript(script: str) -> str:
 def main():
     print("\nTesting Calendar.app access...")
     
-    # Test 1: List calendars
+    # Test 1: List calendars (simpler syntax)
     print("\nTest 1: List calendars")
     script1 = """
         tell application "Calendar"
-            set calNames to {}
+            set output to ""
             repeat with cal in calendars
-                copy (name of cal) to the end of calNames
+                set output to output & name of cal & linefeed
             end repeat
-            return calNames
+            return output
         end tell
     """
     result1 = run_applescript(script1)
-    print(f"Result: {result1}")
+    print(f"Result:\n{result1}")
     
-    # Test 2: Get events from a specific calendar
+    # Test 2: Get events from Calendar (simpler syntax)
     print("\nTest 2: Get events from Calendar")
     script2 = """
         tell application "Calendar"
-            set targetCalName to "Calendar"
-            set targetCal to first calendar whose name is targetCalName
+            set output to ""
+            set cal to first calendar whose name is "Calendar"
+            set today_start to (current date) - (time of (current date))
+            set today_end to today_start + 7 * days
             
-            set startDate to current date
-            set endDate to startDate + (7 * days)
-            
-            set eventList to {}
-            set theEvents to (every event of targetCal whose start date ≥ startDate and start date ≤ endDate)
-            
-            repeat with evt in theEvents
-                set eventInfo to {summary of evt, start date of evt}
-                copy eventInfo to the end of eventList
+            repeat with evt in (every event of cal whose start date ≥ today_start and start date ≤ today_end)
+                set output to output & summary of evt & " at " & ((time string of (start date of evt)) as string) & linefeed
             end repeat
             
-            return eventList
+            return output
         end tell
     """
     result2 = run_applescript(script2)
-    print(f"Result: {result2}")
+    print(f"Result:\n{result2}")
     
-    # Test 3: Get events from all calendars
-    print("\nTest 3: Get events from all calendars")
+    # Test 3: Get events from all selected calendars
+    print("\nTest 3: Get events from selected calendars")
+    selected_calendars = ["Calendar", "Personal", "Apple", "MD AI/ML COE", "Siri Suggestions"]
     script3 = """
         tell application "Calendar"
-            set startDate to current date
-            set endDate to startDate + (7 * days)
-            set allEvents to {}
+            set output to ""
+            set today_start to (current date) - (time of (current date))
+            set today_end to today_start + 7 * days
             
-            repeat with cal in calendars
-                set calName to name of cal
-                set theEvents to (every event of cal whose start date ≥ startDate and start date ≤ endDate)
-                
-                repeat with evt in theEvents
-                    set eventInfo to {calName, summary of evt}
-                    copy eventInfo to the end of allEvents
-                end repeat
+            repeat with cal_name in {""" + ", ".join(f'"{cal}"' for cal in selected_calendars) + """}
+                try
+                    set cal to first calendar whose name is cal_name
+                    set output to output & "Calendar: " & cal_name & linefeed
+                    
+                    repeat with evt in (every event of cal whose start date ≥ today_start and start date ≤ today_end)
+                        set output to output & "  - " & summary of evt & " at " & ((time string of (start date of evt)) as string) & linefeed
+                    end repeat
+                on error errMsg
+                    set output to output & "Error accessing calendar " & cal_name & ": " & errMsg & linefeed
+                end try
             end repeat
             
-            return allEvents
+            return output
         end tell
     """
     result3 = run_applescript(script3)
-    print(f"Result: {result3}")
+    print(f"Result:\n{result3}")
 
 if __name__ == "__main__":
     main()
