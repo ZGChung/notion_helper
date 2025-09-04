@@ -1,4 +1,5 @@
 To: peng_chang@apple.com
+CC: fatty.chi@apple.com, jing_chen@apple.com, tluo@apple.com, benie_huang@apple.com, yushuang_shan@apple.com
 From: Jayson Zhong
 Subject: Weekly update - 47
 
@@ -6,25 +7,24 @@ Subject: Weekly update - 47
 
 Dear Paul,
 
-I am writing to summarize my progress in the past week. This week I focused on advancing core project development and providing data infrastructure support.
+I am writing to summarize my progress in the past week. This week I focused on project development across several key initiatives.
 
 1. [ADR: Auto Drawing Review]
 	On track.
 	a. Improved the JSON converter and pivoted the fastML version of ADR
 	b. Updated ADR slides and participated in Phase II discussions with @Jane
-	c. Coordinated meeting times with Jiyu, Simon, and Sahib
-	d. Reached out to other LOBs to inform them about the rule config tool and provided parsing results to @Chuan
+	c. Reached out to other LOBs to inform them about the rule config tool
+	d. Attended the Watch Team rule integration KO meeting and provided parsing results to @Chuan
 
 2. [ST: Dim/ORT/CPK Smart Tool]
 	On track.
-	a. Conducted T1 tracker activities and checked the Smart Tool data pipeline
-	b. Fixed bugs in the T1 tab and resolved the New IO data tab issues
-	c. Addressed UMP T1 tab ordering issues and updated the T1 spec file
-	d. Continued Smart Tool development throughout the week
+	a. Monitored the T1 tracker and checked the Smart Tool data pipeline
+	b. Fixed issues in the Smart Tool’s New IO data tab and the UMP T1 tab’s ordering
+	c. Updated the T1 spec file and continued Smart Tool development
 
 3. [CO: Comma Auto Dorado]
 	On track.
-	a. Worked on fixing the jayson-demo app throughout the week
+	a. Worked on fixing the jayson-demo app
 
 4. [TDA: Trace Data Audit]
 	On track.
@@ -33,15 +33,13 @@ I am writing to summarize my progress in the past week. This week I focused on a
 
 5. [RAMP: Ramp Data Support]
 	On track.
-	a. Conducted ongoing follow-up on the white dot issue throughout the week
+	a. Followed up on the white dot issue
 
 6. [INF: Data Infrastructure]
 	On track.
-	a. Provided deployment support for Zihan throughout the week
-
-Remark: The "ch" items related to Chengdu travel and meetings have been excluded from this project update as they represent logistical activities rather than project work. All technical projects remain on track with consistent progress throughout the week.
+	a. Performed deployment for Zihan
 
 Best regards,
 
-Jayson Zhong
+Jayson Zhong  
 Apple

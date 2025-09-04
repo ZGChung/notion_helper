@@ -12,7 +12,7 @@ Please rewrite the following email to match this professional style:
 5. **Collaborators**: Preserve all @mentions exactly as they appear (e.g., @Garvin, @Chuan, @Jane)
 6. **Links**: Remove any URLs/links - the recipient will ask for them if needed
 7. **Grouping**: Group related tasks under appropriate project headings
-8. **Remarks**: Add a "Remark:" section at the end for additional context or priorities
+8. **No Remarks**: Do NOT add a "Remark:" section - the recipient will add remarks manually if needed
 9. **Closing**: End with "Best regards," followed by the sender's name and "Apple"
 
 **Style Example:**
@@ -31,8 +31,6 @@ I am writing to summarize my progress in the past week. This week I focused on [
 	[Status].
 	a. [Task details]
 	b. [More specifics]
-
-Remark: [Additional context about priorities, paused projects, or extra help provided]
 
 Best regards,
 
