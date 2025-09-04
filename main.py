@@ -104,11 +104,15 @@ def sync_calendar():
     try:
         calendar_sync = CalendarSync()
 
-        # Preview sync first
+        # Get next week range and fetch events once
         parser = TodoParser()
         next_week_start, next_week_end = parser.get_next_week_range()
 
-        preview = calendar_sync.preview_sync(next_week_start, next_week_end)
+        # Fetch events once
+        events = calendar_sync.fetch_calendar_events(next_week_start, next_week_end)
+        
+        # Preview the events
+        preview = calendar_sync.preview_sync(next_week_start, next_week_end, events)
 
         if not preview:
             click.echo("   No calendar events found for next week.")
@@ -117,14 +121,15 @@ def sync_calendar():
         click.echo(
             f"   Preview for {next_week_start.strftime('%Y-%m-%d')} to {next_week_end.strftime('%Y-%m-%d')}:"
         )
-        for filename, events in preview.items():
-            click.echo(f"   📄 {filename}: {len(events)} events")
-            for event in events[:3]:  # Show first 3 events
+        for filename, event_list in preview.items():
+            click.echo(f"   📄 {filename}: {len(event_list)} events")
+            for event in event_list[:3]:  # Show first 3 events
                 click.echo(f"      {event}")
-            if len(events) > 3:
-                click.echo(f"      ... and {len(events) - 3} more")
+            if len(event_list) > 3:
+                click.echo(f"      ... and {len(event_list) - 3} more")
 
-        calendar_sync.sync_next_week()
+        # Sync to Notion using the same events
+        calendar_sync.sync_to_notion(next_week_start, next_week_end, events)
         click.echo("   ✅ Calendar sync completed")
 
     except Exception as e:

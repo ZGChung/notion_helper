@@ -12,7 +12,13 @@ from .config import get_config
 class CalendarEvent:
     """Represents a calendar event."""
 
-    def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
+    def __init__(
+        self,
+        title: str,
+        start: datetime,
+        end: datetime = None,
+        calendar_name: str = None,
+    ):
         self.title = title
         self.start = start
         self.end = end
@@ -23,14 +29,12 @@ class CalendarEvent:
         content = self.title
         if self.calendar_name:
             content = f"[{self.calendar_name}] {content}"
-            
+
         return {
             "object": "block",
             "type": "to_do",
             "to_do": {
-                "rich_text": [
-                    {"type": "text", "text": {"content": content}}
-                ],
+                "rich_text": [{"type": "text", "text": {"content": content}}],
                 "checked": False,
             },
         }
@@ -47,19 +51,19 @@ class CalendarSync:
         """Run AppleScript and return its output."""
         try:
             process = subprocess.Popen(
-                ['osascript', '-e', script],
+                ["osascript", "-e", script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
             )
             stdout, stderr = process.communicate()
-            
+
             if process.returncode != 0:
                 print(f"AppleScript error: {stderr}")
                 return ""
-                
+
             return stdout.strip()
-            
+
         except Exception as e:
             print(f"Error running AppleScript: {e}")
             return ""
@@ -69,9 +73,9 @@ class CalendarSync:
     ) -> List[CalendarEvent]:
         """Fetch events from Calendar.app."""
         events = []
-        
+
         print("\nFetching events from Calendar.app...")
-        
+
         # First, get list of calendars
         calendar_script = """
             tell application "Calendar"
@@ -82,36 +86,38 @@ class CalendarSync:
                 return output
             end tell
         """
-        
+
         calendars_output = self._run_applescript(calendar_script)
-        available_calendars = [cal.strip() for cal in calendars_output.split('\n') if cal.strip()]
-        
+        available_calendars = [
+            cal.strip() for cal in calendars_output.split("\n") if cal.strip()
+        ]
+
         print("\nAvailable calendars:")
         for cal in available_calendars:
             print(f"  • {cal}")
-        
+
         # Get selected calendars from config
         selected_calendars = self.config.icloud_calendars
         if selected_calendars is not None:
-            print(f"\nSelected calendars: {', '.join(selected_calendars) if selected_calendars else 'All'}")
+            print(
+                f"\nSelected calendars: {', '.join(selected_calendars) if selected_calendars else 'All'}"
+            )
         else:
             print("\nNo calendar selection configured, using all calendars")
             selected_calendars = available_calendars
-        
+
         # Build script to get events from selected calendars
         calendar_list = ", ".join(f'"{cal}"' for cal in selected_calendars)
+        
+        # Format dates properly for AppleScript
+        start_str = start_date.strftime("%B %d, %Y")
+        end_str = end_date.strftime("%B %d, %Y")
+        
         events_script = f"""
             tell application "Calendar"
                 set output to ""
-                set start_date to current date
-                set start_date's year to {start_date.year}
-                set start_date's month to {start_date.month}
-                set start_date's day to {start_date.day}
-                
-                set end_date to current date
-                set end_date's year to {end_date.year}
-                set end_date's month to {end_date.month}
-                set end_date's day to {end_date.day}
+                set start_date to date "{start_str}"
+                set end_date to date "{end_str}"
                 
                 repeat with cal_name in {{{calendar_list}}}
                     try
@@ -133,54 +139,62 @@ class CalendarSync:
                 return output
             end tell
         """
-        
+
         events_output = self._run_applescript(events_script)
-        
+
         # Parse events output
         current_calendar = None
         current_event = {}
-        
-        for line in events_output.split('\n'):
+
+        for line in events_output.split("\n"):
             line = line.strip()
             if not line:
                 continue
-                
-            if line.startswith('Calendar:'):
+
+            if line.startswith("Calendar:"):
                 current_calendar = line[9:].strip()
-            elif line.startswith('Event:'):
+            elif line.startswith("Event:"):
                 if current_event:
                     try:
-                        events.append(CalendarEvent(
-                            title=current_event['title'],
-                            start=dateutil.parser.parse(current_event['start']),
-                            end=dateutil.parser.parse(current_event['end']),
-                            calendar_name=current_event['calendar']
-                        ))
+                        events.append(
+                            CalendarEvent(
+                                title=current_event["title"],
+                                start=dateutil.parser.parse(current_event["start"]),
+                                end=dateutil.parser.parse(current_event["end"]),
+                                calendar_name=current_event["calendar"],
+                            )
+                        )
                     except Exception as e:
                         print(f"Error parsing event: {e}")
-                current_event = {'title': line[6:].strip(), 'calendar': current_calendar}
-            elif line.startswith('Start:'):
-                current_event['start'] = line[6:].strip()
-            elif line.startswith('End:'):
-                current_event['end'] = line[4:].strip()
-            elif line == '---' and current_event:
+                current_event = {
+                    "title": line[6:].strip(),
+                    "calendar": current_calendar,
+                }
+            elif line.startswith("Start:"):
+                current_event["start"] = line[6:].strip()
+            elif line.startswith("End:"):
+                current_event["end"] = line[4:].strip()
+            elif line == "---" and current_event:
                 try:
-                    events.append(CalendarEvent(
-                        title=current_event['title'],
-                        start=dateutil.parser.parse(current_event['start']),
-                        end=dateutil.parser.parse(current_event['end']),
-                        calendar_name=current_event['calendar']
-                    ))
+                    events.append(
+                        CalendarEvent(
+                            title=current_event["title"],
+                            start=dateutil.parser.parse(current_event["start"]),
+                            end=dateutil.parser.parse(current_event["end"]),
+                            calendar_name=current_event["calendar"],
+                        )
+                    )
                 except Exception as e:
                     print(f"Error parsing event: {e}")
                 current_event = {}
-        
+
         print(f"\nTotal events found: {len(events)}")
         return events
 
-    def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
+    def sync_to_notion(self, start_date: datetime, end_date: datetime, events: List[CalendarEvent] = None) -> None:
         """Sync calendar events to Notion for the specified date range."""
-        events = self.fetch_calendar_events(start_date, end_date)
+        if events is None:
+            events = self.fetch_calendar_events(start_date, end_date)
 
         # Group events by date
         events_by_date = {}
@@ -210,36 +224,35 @@ class CalendarSync:
                 "object": "block",
                 "type": "toggle",
                 "toggle": {
-                    "rich_text": [
-                        {
-                            "type": "text",
-                            "text": {"content": date_str}
-                        }
-                    ],
+                    "rich_text": [{"type": "text", "text": {"content": date_str}}],
                     "color": "default",
-                    "children": [event.to_notion_todo() for event in events]
-                }
+                    "children": [event.to_notion_todo() for event in events],
+                },
             }
         ]
 
         # Append blocks to Notion page
         if blocks:
-            print(f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:")
+            print(
+                f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:"
+            )
             print(f"- Events under '{date_str}':")
             for event in events:
-                calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
+                calendar_info = (
+                    f"[{event.calendar_name}] " if event.calendar_name else ""
+                )
                 print(f"  • {calendar_info}{event.title}")
-            
+
             self.notion.blocks.children.append(
-                block_id=self.config.daily_log_page_id,
-                children=blocks
+                block_id=self.config.daily_log_page_id, children=blocks
             )
 
     def preview_sync(
-        self, start_date: datetime, end_date: datetime
+        self, start_date: datetime, end_date: datetime, events: List[CalendarEvent] = None
     ) -> Dict[str, List[str]]:
         """Preview calendar events that would be synced."""
-        events = self.fetch_calendar_events(start_date, end_date)
+        if events is None:
+            events = self.fetch_calendar_events(start_date, end_date)
 
         # Group events by date
         preview = {}
