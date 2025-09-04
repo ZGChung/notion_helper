@@ -245,6 +245,21 @@ def test_config():
             click.echo(f"      ❌ Notion connection failed: {str(e)}")
             raise e
 
+        # Test iCloud configuration
+        click.echo("   ☁️  Testing iCloud configuration...")
+        if config.icloud_username and config.icloud_password:
+            click.echo("      ✅ iCloud credentials configured")
+            if hasattr(config, 'icloud_calendars'):
+                calendars = config.icloud_calendars
+                if calendars:
+                    click.echo(f"      ✅ Selected calendars: {', '.join(calendars)}")
+                else:
+                    click.echo("      ℹ️  No calendars selected (will sync all calendars)")
+            else:
+                click.echo("      ⚠️  No calendar selection configured (will sync all calendars)")
+        else:
+            click.echo("      ❌ iCloud credentials missing")
+
         click.echo("🎉 Configuration test completed!")
 
     except Exception as e:
@@ -320,7 +335,7 @@ def create_sample_config():
     click.echo(f"   ✅ Sample configuration available at: {config_path}")
     click.echo("   📝 Please edit the file and fill in your actual values:")
     click.echo("      - Notion API token and database IDs")
-    click.echo("      - File paths for your daily todos and calendar")
+    click.echo("      - iCloud credentials and calendar selection")
     click.echo("      - Email settings")
 
 
