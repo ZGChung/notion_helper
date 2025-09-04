@@ -2,14 +2,16 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Union
+import caldav
 from notion_client import Client
 import dateutil.parser
-import subprocess
-import json
-import re
+import vobject
+import urllib3
 
 from .config import get_config
 
+# Disable insecure HTTPS warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class CalendarEvent:
     """Represents a calendar event."""
@@ -48,6 +50,7 @@ class CalendarSync:
     def _run_applescript(self, script: str) -> str:
         """Run AppleScript and return its output."""
         try:
+            import subprocess
             process = subprocess.Popen(
                 ['osascript', '-e', script],
                 stdout=subprocess.PIPE,
@@ -94,10 +97,24 @@ class CalendarSync:
         print(calendars_output)
         
         # Parse calendar list
+        import re
         calendar_matches = re.finditer(r'{name:(.+?), id:(.+?)}', calendars_output)
         calendars = [(m.group(1), m.group(2)) for m in calendar_matches]
         
+        # Get selected calendars from config
+        selected_calendars = self.config.icloud_calendars
+        if selected_calendars is not None:
+            print(f"\nSelected calendars: {', '.join(selected_calendars) if selected_calendars else 'All'}")
+        else:
+            print("\nNo calendar selection configured, using all calendars")
+            selected_calendars = []
+        
         for cal_name, cal_id in calendars:
+            # Skip if calendar not selected
+            if selected_calendars and cal_name not in selected_calendars:
+                print(f"\nSkipping calendar: {cal_name} (not in selected calendars)")
+                continue
+                
             print(f"\nFetching events from calendar: {cal_name}")
             
             # Get events for this calendar
@@ -123,7 +140,6 @@ class CalendarSync:
             """
             
             events_output = self._run_applescript(events_script)
-            print(f"Raw events output: {events_output[:200]}...")  # Show first 200 chars
             
             # Parse events
             event_matches = re.finditer(r'{title:(.+?), start:date "(.+?)", end:date "(.+?)"}', events_output)
