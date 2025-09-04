@@ -10,8 +10,8 @@ notion:
 # iCloud configuration
 icloud:
     username: "your_icloud_email@example.com"
-    password: "your_app_specific_password"  # Generate from Apple ID settings
-    calendars:  # List of calendar names to sync (empty list means all calendars)
+    app_password: "your_app_specific_password" # Generate from Apple ID settings
+    calendars: # List of calendar names to sync (empty list means all calendars)
         - "Calendar"
         - "Work"
         - "Personal"
@@ -33,3 +33,27 @@ email:
 
 # Timezone
 timezone: "Asia/Shanghai" # China Time
+
+# Recurring
+recurring_events:
+    Monday:
+        - title: "Weekly Team Meeting"
+          time: "10:00-11:00"
+    Tuesday:
+        - title: "Gym"
+          time: "18:00-19:00"
+    Wednesday:
+        - title: "Project Sync"
+          time: "14:00-15:00"
+    Thursday:
+        - title: "Code Review"
+          time: "16:00-17:00"
+    Friday:
+        - title: "Client Call"
+          time: "15:00-16:00"
+    Saturday:
+        - title: "Gym"
+          time: "10:00-11:00"
+    Sunday:
+        - title: "Family Dinner"
+          time: "18:00-19:00"

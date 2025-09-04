@@ -66,7 +66,7 @@ class Config:
     @property
     def icloud_calendars(self) -> Optional[List[str]]:
         """Get list of calendars to sync.
-        
+
         Returns:
             List of calendar names to sync, or None if not configured.
             Empty list means sync all calendars.
@@ -95,6 +95,11 @@ class Config:
     def timezone(self) -> str:
         """Get timezone setting."""
         return self._config["timezone"]
+
+    @property
+    def recurring_events(self) -> Dict[str, list]:
+        """Get manually configured weekly recurring events."""
+        return self._config.get("recurring_events", {})
 
     def email_to_list(self) -> List[str]:
         """Get email destination list."""

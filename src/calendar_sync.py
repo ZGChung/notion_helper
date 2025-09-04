@@ -1,17 +1,13 @@
-"""iCloud Calendar sync functionality for importing calendar events to Notion."""
-
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Union
+from dateutil.parser import parse
+from typing import List, Dict, Any
 from notion_client import Client
-import dateutil.parser
 import subprocess
 
 from .config import get_config
 
 
 class CalendarEvent:
-    """Represents a calendar event."""
-
     def __init__(
         self,
         title: str,
@@ -25,11 +21,9 @@ class CalendarEvent:
         self.calendar_name = calendar_name
 
     def to_notion_todo(self) -> Dict[str, Any]:
-        """Convert calendar event to Notion todo block."""
-        content = self.title
-        if self.calendar_name:
-            content = f"[{self.calendar_name}] {content}"
-
+        content = (
+            f"[{self.calendar_name}] {self.title}" if self.calendar_name else self.title
+        )
         return {
             "object": "block",
             "type": "to_do",
@@ -41,192 +35,100 @@ class CalendarEvent:
 
 
 class CalendarSync:
-    """Calendar sync functionality using macOS Calendar.app."""
-
     def __init__(self):
         self.config = get_config()
         self.notion = Client(auth=self.config.notion_token)
 
-    def _run_applescript(self, script: str) -> str:
-        """Run AppleScript and return its output."""
+    def _run_applescript(self, script: str) -> List[Dict[str, Any]]:
         try:
-            process = subprocess.Popen(
+            proc = subprocess.Popen(
                 ["osascript", "-e", script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            stdout, stderr = process.communicate()
-
-            if process.returncode != 0:
+            stdout, stderr = proc.communicate()
+            if proc.returncode != 0:
                 print(f"AppleScript error: {stderr}")
-                return ""
-
-            return stdout.strip()
-
+                return []
         except Exception as e:
             print(f"Error running AppleScript: {e}")
-            return ""
+            return []
+
+        events = []
+        current_cal, current_event = None, {}
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("Calendar:"):
+                current_cal = line[9:].strip()
+            elif line.startswith("Event:"):
+                current_event = {"title": line[6:].strip(), "calendar": current_cal}
+            elif line.startswith("Start:"):
+                current_event["start"] = parse(line[6:].strip())
+            elif line.startswith("End:"):
+                current_event["end"] = parse(line[4:].strip())
+            elif line == "---" and current_event:
+                events.append(current_event)
+                current_event = {}
+        return events
 
     def fetch_calendar_events(
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
-        """Fetch events from Calendar.app."""
-        events = []
+        selected_calendars = self.config.icloud_calendars or []
 
-        print("\nFetching events from Calendar.app...")
-
-        # First, get list of calendars
-        calendar_script = """
+        if not selected_calendars:
+            cal_list_script = """
             tell application "Calendar"
-                set output to ""
+                set cal_names to {}
                 repeat with cal in calendars
-                    set output to output & name of cal & linefeed
+                    set end of cal_names to name of cal
                 end repeat
-                return output
+                return cal_names
             end tell
-        """
+            """
+            raw_output = self._run_applescript(cal_list_script)
+            selected_calendars = [cal.strip() for cal in raw_output]
 
-        calendars_output = self._run_applescript(calendar_script)
-        available_calendars = [
-            cal.strip() for cal in calendars_output.split("\n") if cal.strip()
-        ]
-
-        print("\nAvailable calendars:")
-        for cal in available_calendars:
-            print(f"  • {cal}")
-
-        # Get selected calendars from config
-        selected_calendars = self.config.icloud_calendars
-        if selected_calendars is not None:
-            print(
-                f"\nSelected calendars: {', '.join(selected_calendars) if selected_calendars else 'All'}"
-            )
-        else:
-            print("\nNo calendar selection configured, using all calendars")
-            selected_calendars = available_calendars
-
-        # Build script to get events from selected calendars
-        calendar_list = ", ".join(f'"{cal}"' for cal in selected_calendars)
-
-        # Convert the passed date parameters to AppleScript format
-        start_str = start_date.strftime("%m/%d/%Y %H:%M:%S")
-        end_str = end_date.strftime("%m/%d/%Y %H:%M:%S")
+        cal_list_str = ", ".join(f'"{c}"' for c in selected_calendars)
+        start_str, end_str = start_date.strftime(
+            "%m/%d/%Y %H:%M:%S"
+        ), end_date.strftime("%m/%d/%Y %H:%M:%S")
 
         events_script = f"""
-            tell application "Calendar"
-                set output to ""
-
-                -- define time range
-                set startDate to date "{start_str}"
-                set endDate to date "{end_str}"
-
-                repeat with cal_name in {{{calendar_list}}}
-                    try
-                        set cal to first calendar whose name is cal_name
-                        set output to output & "Calendar:" & cal_name & linefeed
-                        
-                        -- select only the events within the range
-                        set theEvents to every event of cal whose start date ≥ startDate and end date ≤ endDate
-                        
-                        repeat with evt in theEvents
-                            set output to output & "Event:" & summary of evt & linefeed
-                            set output to output & "Start:" & ((start date of evt) as string) & linefeed
-                            set output to output & "End:" & ((end date of evt) as string) & linefeed
-                            set output to output & "---" & linefeed
-                        end repeat
-                    on error errMsg
-                        set output to output & "Error:" & cal_name & ":" & errMsg & linefeed
-                    end try
-                end repeat
-
-                return output
-            end tell
+        set startDate to date "{start_str}"
+        set endDate to date "{end_str}"
+        tell application "Calendar"
+            set output to ""
+            repeat with cal_name in {{{cal_list_str}}}
+                try
+                    set cal to first calendar whose name is cal_name
+                    set output to output & "Calendar:" & cal_name & linefeed
+                    set theEvents to every event of cal whose start date ≤ endDate and end date ≥ startDate
+                    repeat with evt in theEvents
+                        set output to output & "Event:" & summary of evt & linefeed
+                        set output to output & "Start:" & ((start date of evt) as string) & linefeed
+                        set output to output & "End:" & ((end date of evt) as string) & linefeed
+                        set output to output & "---" & linefeed
+                    end repeat
+                on error errMsg
+                    set output to output & "Error:" & cal_name & ":" & errMsg & linefeed
+                end try
+            end repeat
+            return output
+        end tell
         """
 
-        print(
-            f"Now fetch the events between {start_str} and {end_str} for these calendars..."
-        )
-        events_output = self._run_applescript(events_script)
-
-        # Parse events output
-        current_calendar = None
-        current_event = {}
-
-        for line in events_output.split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.startswith("Calendar:"):
-                current_calendar = line[9:].strip()
-            elif line.startswith("Event:"):
-                if current_event:
-                    try:
-                        events.append(
-                            CalendarEvent(
-                                title=current_event["title"],
-                                start=dateutil.parser.parse(current_event["start"]),
-                                end=dateutil.parser.parse(current_event["end"]),
-                                calendar_name=current_event["calendar"],
-                            )
-                        )
-                    except Exception as e:
-                        print(f"Error parsing event: {e}")
-                current_event = {
-                    "title": line[6:].strip(),
-                    "calendar": current_calendar,
-                }
-            elif line.startswith("Start:"):
-                current_event["start"] = line[6:].strip()
-            elif line.startswith("End:"):
-                current_event["end"] = line[4:].strip()
-            elif line == "---" and current_event:
-                try:
-                    event_start = dateutil.parser.parse(current_event["start"])
-                    event_end = dateutil.parser.parse(current_event["end"])
-
-                    # Filter events to only include those within the date range
-                    if (
-                        event_start.date() >= start_date.date()
-                        and event_start.date() <= end_date.date()
-                    ):
-                        events.append(
-                            CalendarEvent(
-                                title=current_event["title"],
-                                start=event_start,
-                                end=event_end,
-                                calendar_name=current_event["calendar"],
-                            )
-                        )
-                except Exception as e:
-                    print(f"Error parsing event: {e}")
-                current_event = {}
-
-        # Handle last event if it exists
-        if current_event and "title" in current_event:
-            try:
-                event_start = dateutil.parser.parse(current_event["start"])
-                event_end = dateutil.parser.parse(current_event["end"])
-
-                # Filter events to only include those within the date range
-                if (
-                    event_start.date() >= start_date.date()
-                    and event_start.date() <= end_date.date()
-                ):
-                    events.append(
-                        CalendarEvent(
-                            title=current_event["title"],
-                            start=event_start,
-                            end=event_end,
-                            calendar_name=current_event["calendar"],
-                        )
-                    )
-            except Exception as e:
-                print(f"Error parsing final event: {e}")
-
-        print(f"\nTotal events found: {len(events)}")
-        return events
+        raw_events = self._run_applescript(events_script)
+        filtered = []
+        for e in raw_events:
+            if start_date.date() <= e["start"].date() <= end_date.date():
+                filtered.append(
+                    CalendarEvent(e["title"], e["start"], e["end"], e["calendar"])
+                )
+        return filtered
 
     def sync_to_notion(
         self,
@@ -234,33 +136,48 @@ class CalendarSync:
         end_date: datetime,
         events: List[CalendarEvent] = None,
     ) -> None:
-        """Sync calendar events to Notion for the specified date range."""
         if events is None:
             events = self.fetch_calendar_events(start_date, end_date)
 
-        # Group events by date
-        events_by_date = {}
+        # Merge automatic events and manual recurring events
+        events_by_date: Dict[datetime.date, List[CalendarEvent]] = {}
         for event in events:
-            date_key = event.start.date()
-            if date_key not in events_by_date:
-                events_by_date[date_key] = []
-            events_by_date[date_key].append(event)
+            day = event.start.date()  # always use date
+            events_by_date.setdefault(day, []).append(event)
 
-        # Update Notion
-        for date, date_events in events_by_date.items():
-            self._update_notion_todos(date, date_events)
+        for n in range((end_date - start_date).days + 1):
+            single_date = (start_date + timedelta(days=n)).date()  # normalize to date
+            weekday_name = (start_date + timedelta(days=n)).strftime("%A")
+            manual_events = self.config.recurring_events.get(weekday_name, [])
+            for m_evt in manual_events:
+                start_time_str, end_time_str = m_evt.get("time", "00:00-01:00").split(
+                    "-"
+                )
+                start_dt = datetime.combine(
+                    single_date, datetime.strptime(start_time_str, "%H:%M").time()
+                )
+                end_dt = datetime.combine(
+                    single_date, datetime.strptime(end_time_str, "%H:%M").time()
+                )
+                cal_event = CalendarEvent(
+                    title=m_evt["title"],
+                    start=start_dt,
+                    end=end_dt,
+                    calendar_name="Manual",
+                )
+                events_by_date.setdefault(single_date, []).append(cal_event)
+
+        # Sort the days and events
+        for day in sorted(events_by_date.keys()):
+            day_events = sorted(events_by_date[day], key=lambda e: e.start)
+            self._update_notion_todos(day, day_events)
 
     def _update_notion_todos(
         self, date: datetime.date, events: List[CalendarEvent]
     ) -> None:
-        """Update Notion page with calendar events."""
         if not events:
             return
-
-        # Format date as "Sep 1 Mon"
         date_str = date.strftime("%b %-d %a")
-
-        # Create toggle block with events as children
         blocks = [
             {
                 "object": "block",
@@ -268,26 +185,21 @@ class CalendarSync:
                 "toggle": {
                     "rich_text": [{"type": "text", "text": {"content": date_str}}],
                     "color": "default",
-                    "children": [event.to_notion_todo() for event in events],
+                    "children": [evt.to_notion_todo() for evt in events],
                 },
             }
         ]
+        self.notion.blocks.children.append(
+            block_id=self.config.daily_log_page_id, children=blocks
+        )
+        print(f"Added {len(events)} events for {date_str} to Notion.")
 
-        # Append blocks to Notion page
-        if blocks:
-            print(
-                f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:"
-            )
-            print(f"- Events under '{date_str}':")
-            for event in events:
-                calendar_info = (
-                    f"[{event.calendar_name}] " if event.calendar_name else ""
-                )
-                print(f"  • {calendar_info}{event.title}")
-
-            self.notion.blocks.children.append(
-                block_id=self.config.daily_log_page_id, children=blocks
-            )
+    def sync_next_week(self) -> None:
+        today = datetime.now()
+        days_until_monday = (7 - today.weekday()) % 7
+        next_monday = today + timedelta(days=days_until_monday)
+        next_sunday = next_monday + timedelta(days=6)
+        self.sync_to_notion(next_monday, next_sunday)
 
     def preview_sync(
         self,
@@ -295,30 +207,28 @@ class CalendarSync:
         end_date: datetime,
         events: List[CalendarEvent] = None,
     ) -> Dict[str, List[str]]:
-        """Preview calendar events that would be synced."""
         if events is None:
             events = self.fetch_calendar_events(start_date, end_date)
 
-        # Group events by date
-        preview = {}
+        preview: Dict[str, List[str]] = {}
         for event in events:
-            date_key = event.start.strftime("%Y-%m-%d")
-            if date_key not in preview:
-                preview[date_key] = []
+            key = event.start.strftime("%Y-%m-%d")
+            preview.setdefault(key, []).append(
+                f"[{event.calendar_name}] {event.title} at {event.start.strftime('%H:%M')}"
+            )
 
-            calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
-            time_str = event.start.strftime("%H:%M")
-            if event.end:
-                time_str += f"-{event.end.strftime('%H:%M')}"
-            preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
+        for n in range((end_date - start_date).days + 1):
+            single_date = start_date + timedelta(days=n)
+            weekday_name = single_date.strftime("%A")
+            manual_events = self.config.recurring_events.get(weekday_name, [])
+            for m_evt in manual_events:
+                key = single_date.strftime("%Y-%m-%d")
+                preview.setdefault(key, []).append(
+                    f"[Manual] {m_evt['title']} at {m_evt.get('time', '00:00-01:00')}"
+                )
 
-        return preview
-
-    def sync_next_week(self) -> None:
-        """Sync next week's calendar events."""
-        today = datetime.now()
-        days_until_monday = 7 - today.weekday()
-        next_monday = today + timedelta(days=days_until_monday)
-        next_sunday = next_monday + timedelta(days=6)
-
-        self.sync_to_notion(next_monday, next_sunday)
+        # Sort keys and events
+        sorted_preview = {}
+        for date in sorted(preview.keys()):
+            sorted_preview[date] = sorted(preview[date])
+        return sorted_preview
