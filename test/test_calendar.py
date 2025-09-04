@@ -1,6 +1,7 @@
 """Test Calendar.app access."""
 
 import subprocess
+from datetime import datetime, timedelta
 
 def run_applescript(script: str) -> str:
     """Run AppleScript and return its output."""
@@ -26,45 +27,63 @@ def run_applescript(script: str) -> str:
 def main():
     print("\nTesting Calendar.app access...")
     
-    # Test 1: Basic Calendar.app access
-    print("\nTest 1: Basic Calendar.app access")
+    # Test 1: List calendars
+    print("\nTest 1: List calendars")
     script1 = """
         tell application "Calendar"
-            return name of calendars
+            set calNames to {}
+            repeat with cal in calendars
+                copy (name of cal) to the end of calNames
+            end repeat
+            return calNames
         end tell
     """
     result1 = run_applescript(script1)
     print(f"Result: {result1}")
     
-    # Test 2: Get calendar details
-    print("\nTest 2: Get calendar details")
+    # Test 2: Get events from a specific calendar
+    print("\nTest 2: Get events from Calendar")
     script2 = """
         tell application "Calendar"
-            set output to ""
-            repeat with cal in calendars
-                set output to output & "Calendar: " & name of cal & ", Color: " & color of cal & ", Enabled: " & enabled of cal & linefeed
+            set targetCalName to "Calendar"
+            set targetCal to first calendar whose name is targetCalName
+            
+            set startDate to current date
+            set endDate to startDate + (7 * days)
+            
+            set eventList to {}
+            set theEvents to (every event of targetCal whose start date ≥ startDate and start date ≤ endDate)
+            
+            repeat with evt in theEvents
+                set eventInfo to {summary of evt, start date of evt}
+                copy eventInfo to the end of eventList
             end repeat
-            return output
+            
+            return eventList
         end tell
     """
     result2 = run_applescript(script2)
     print(f"Result: {result2}")
     
-    # Test 3: Get today's events
-    print("\nTest 3: Get today's events")
+    # Test 3: Get events from all calendars
+    print("\nTest 3: Get events from all calendars")
     script3 = """
         tell application "Calendar"
-            set output to ""
-            set today_start to (current date) - (time of (current date))
-            set today_end to today_start + 1 * days
+            set startDate to current date
+            set endDate to startDate + (7 * days)
+            set allEvents to {}
+            
             repeat with cal in calendars
-                set output to output & "Calendar: " & name of cal & linefeed
-                set today_events to (every event of cal whose start date ≥ today_start and start date ≤ today_end)
-                repeat with evt in today_events
-                    set output to output & "  - " & summary of evt & " at " & (time string of (start date of evt)) & linefeed
+                set calName to name of cal
+                set theEvents to (every event of cal whose start date ≥ startDate and start date ≤ endDate)
+                
+                repeat with evt in theEvents
+                    set eventInfo to {calName, summary of evt}
+                    copy eventInfo to the end of allEvents
                 end repeat
             end repeat
-            return output
+            
+            return allEvents
         end tell
     """
     result3 = run_applescript(script3)
