@@ -2,16 +2,12 @@
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Union
-import caldav
 from notion_client import Client
 import dateutil.parser
-import vobject
-import urllib3
+import subprocess
 
 from .config import get_config
 
-# Disable insecure HTTPS warnings
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class CalendarEvent:
     """Represents a calendar event."""
@@ -50,7 +46,6 @@ class CalendarSync:
     def _run_applescript(self, script: str) -> str:
         """Run AppleScript and return its output."""
         try:
-            import subprocess
             process = subprocess.Popen(
                 ['osascript', '-e', script],
                 stdout=subprocess.PIPE,
@@ -69,10 +64,6 @@ class CalendarSync:
             print(f"Error running AppleScript: {e}")
             return ""
 
-    def _format_date(self, date: datetime) -> str:
-        """Format date for AppleScript."""
-        return date.strftime("%Y-%m-%d %H:%M:%S")
-
     def fetch_calendar_events(
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
@@ -84,22 +75,20 @@ class CalendarSync:
         # First, get list of calendars
         calendar_script = """
             tell application "Calendar"
-                set calList to {}
-                repeat with calendarAccount in calendars
-                    set end of calList to {name:name of calendarAccount, id:id of calendarAccount}
+                set output to ""
+                repeat with cal in calendars
+                    set output to output & name of cal & linefeed
                 end repeat
-                return calList as text
+                return output
             end tell
         """
         
         calendars_output = self._run_applescript(calendar_script)
-        print("\nAvailable calendars:")
-        print(calendars_output)
+        available_calendars = [cal.strip() for cal in calendars_output.split('\n') if cal.strip()]
         
-        # Parse calendar list
-        import re
-        calendar_matches = re.finditer(r'{name:(.+?), id:(.+?)}', calendars_output)
-        calendars = [(m.group(1), m.group(2)) for m in calendar_matches]
+        print("\nAvailable calendars:")
+        for cal in available_calendars:
+            print(f"  • {cal}")
         
         # Get selected calendars from config
         selected_calendars = self.config.icloud_calendars
@@ -107,59 +96,77 @@ class CalendarSync:
             print(f"\nSelected calendars: {', '.join(selected_calendars) if selected_calendars else 'All'}")
         else:
             print("\nNo calendar selection configured, using all calendars")
-            selected_calendars = []
+            selected_calendars = available_calendars
         
-        for cal_name, cal_id in calendars:
-            # Skip if calendar not selected
-            if selected_calendars and cal_name not in selected_calendars:
-                print(f"\nSkipping calendar: {cal_name} (not in selected calendars)")
+        # Build script to get events from selected calendars
+        calendar_list = ", ".join(f'"{cal}"' for cal in selected_calendars)
+        events_script = f"""
+            tell application "Calendar"
+                set output to ""
+                set start_date to date "{start_date.strftime('%Y-%m-%d')}"
+                set end_date to date "{end_date.strftime('%Y-%m-%d')}"
+                
+                repeat with cal_name in {{{calendar_list}}}
+                    try
+                        set cal to first calendar whose name is cal_name
+                        set output to output & "Calendar:" & cal_name & linefeed
+                        
+                        set theEvents to (every event of cal whose start date ≥ start_date and start date ≤ end_date)
+                        repeat with evt in theEvents
+                            set output to output & "Event:" & summary of evt & linefeed
+                            set output to output & "Start:" & ((start date of evt) as string) & linefeed
+                            set output to output & "End:" & ((end date of evt) as string) & linefeed
+                            set output to output & "---" & linefeed
+                        end repeat
+                    on error errMsg
+                        set output to output & "Error:" & cal_name & ":" & errMsg & linefeed
+                    end try
+                end repeat
+                
+                return output
+            end tell
+        """
+        
+        events_output = self._run_applescript(events_script)
+        
+        # Parse events output
+        current_calendar = None
+        current_event = {}
+        
+        for line in events_output.split('\n'):
+            line = line.strip()
+            if not line:
                 continue
                 
-            print(f"\nFetching events from calendar: {cal_name}")
-            
-            # Get events for this calendar
-            events_script = f"""
-                tell application "Calendar"
-                    set eventList to {{}}
-                    set startDate to date "{self._format_date(start_date)}"
-                    set endDate to date "{self._format_date(end_date)}"
-                    set targetCal to calendar id "{cal_id}"
-                    
-                    set theEvents to (every event of targetCal whose start date is greater than or equal to startDate and start date is less than or equal to endDate)
-                    
-                    repeat with anEvent in theEvents
-                        set eventTitle to summary of anEvent
-                        set eventStart to start date of anEvent
-                        set eventEnd to end date of anEvent
-                        
-                        set end of eventList to {{title:eventTitle, start:eventStart, end:eventEnd}}
-                    end repeat
-                    
-                    return eventList as text
-                end tell
-            """
-            
-            events_output = self._run_applescript(events_script)
-            
-            # Parse events
-            event_matches = re.finditer(r'{title:(.+?), start:date "(.+?)", end:date "(.+?)"}', events_output)
-            
-            for match in event_matches:
+            if line.startswith('Calendar:'):
+                current_calendar = line[9:].strip()
+            elif line.startswith('Event:'):
+                if current_event:
+                    try:
+                        events.append(CalendarEvent(
+                            title=current_event['title'],
+                            start=dateutil.parser.parse(current_event['start']),
+                            end=dateutil.parser.parse(current_event['end']),
+                            calendar_name=current_event['calendar']
+                        ))
+                    except Exception as e:
+                        print(f"Error parsing event: {e}")
+                current_event = {'title': line[6:].strip(), 'calendar': current_calendar}
+            elif line.startswith('Start:'):
+                current_event['start'] = line[6:].strip()
+            elif line.startswith('End:'):
+                current_event['end'] = line[4:].strip()
+            elif line == '---' and current_event:
                 try:
-                    title = match.group(1)
-                    start = dateutil.parser.parse(match.group(2))
-                    end = dateutil.parser.parse(match.group(3))
-                    
-                    print(f"  • {title}")
                     events.append(CalendarEvent(
-                        title=title,
-                        start=start,
-                        end=end,
-                        calendar_name=cal_name
+                        title=current_event['title'],
+                        start=dateutil.parser.parse(current_event['start']),
+                        end=dateutil.parser.parse(current_event['end']),
+                        calendar_name=current_event['calendar']
                     ))
                 except Exception as e:
                     print(f"Error parsing event: {e}")
-                    continue
+                current_event = {}
         
         print(f"\nTotal events found: {len(events)}")
         return events
