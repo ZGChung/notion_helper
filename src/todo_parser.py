@@ -86,10 +86,12 @@ class TodoParser:
             )
 
             for project in response["results"]:
-                # Extract project name from title property
-                title_property = project["properties"].get("Name") or project[
-                    "properties"
-                ].get("Title")
+                # Extract project name from title property (could be "Name", "Title", or "Project")
+                title_property = (
+                    project["properties"].get("Name") 
+                    or project["properties"].get("Title")
+                    or project["properties"].get("Project")
+                )
                 if title_property and title_property["title"]:
                     project_name = title_property["title"][0]["text"]["content"]
 
@@ -109,7 +111,7 @@ class TodoParser:
 
     def fetch_daily_todos(self, date: datetime) -> List[TodoItem]:
         """Fetch daily todos from Notion page."""
-        page_id = self.config.notion_daily_log_page_id
+        page_id = self.config.daily_log_page_id
 
         # Get all blocks from the page
         blocks = self.notion.blocks.children.list(block_id=page_id)
@@ -130,7 +132,13 @@ class TodoParser:
                 # Extract text from rich_text
                 text = ""
                 if block["to_do"]["rich_text"]:
-                    text = block["to_do"]["rich_text"][0]["text"]["content"]
+                    rich_text_item = block["to_do"]["rich_text"][0]
+                    if "text" in rich_text_item:
+                        text = rich_text_item["text"]["content"]
+                    elif "plain_text" in rich_text_item:
+                        text = rich_text_item["plain_text"]
+                    else:
+                        text = str(rich_text_item)  # fallback
 
                 completed = block["to_do"]["checked"]
 
@@ -235,7 +243,14 @@ class TodoParser:
         for block in blocks:
             if block["type"] == "to_do":
                 if block["to_do"]["rich_text"]:
-                    text = block["to_do"]["rich_text"][0]["text"]["content"]
+                    # Handle different rich_text structures
+                    rich_text_item = block["to_do"]["rich_text"][0]
+                    if "text" in rich_text_item:
+                        text = rich_text_item["text"]["content"]
+                    elif "plain_text" in rich_text_item:
+                        text = rich_text_item["plain_text"]
+                    else:
+                        text = str(rich_text_item)  # fallback
                     todo_texts.add(text.strip())
 
                 # Recursively check children

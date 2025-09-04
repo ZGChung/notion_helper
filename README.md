@@ -116,35 +116,38 @@ python main.py test-config
 The system automatically organizes your todos based on prefixes in square brackets:
 
 1. **Daily Todo Format**: Add prefixes to your todos in Notion
-   ```
-   - [x] [adr] Improve the json converter
-       - [x] Align the items in order
-       - [ ] Add validation
-   - [ ] [ch] Flight to Chengdu
-   - [x] [proj] Update documentation
-   ```
+
+    ```
+    - [x] [adr] Improve the json converter
+        - [x] Align the items in order
+        - [ ] Add validation
+    - [ ] [ch] Flight to Chengdu
+    - [x] [proj] Update documentation
+    ```
 
 2. **Project Database**: Create projects with matching prefixes
-   - Project name: `[adr] Architecture Decision Records`
-   - Project name: `[proj] Main Project`
-   - Project name: `[ch] Personal Chores`
+
+    - Project name: `[adr] Architecture Decision Records`
+    - Project name: `[proj] Main Project`
+    - Project name: `[ch] Personal Chores`
 
 3. **Automatic Sync**: When you run `sync-todos`, the system:
-   - Finds todos with prefixes (e.g., `[adr]`)
-   - Matches them to projects with the same prefix
-   - Copies the entire todo hierarchy to the project page
-   - Preserves sub-items and completion status
-   - Avoids duplicates
+    - Finds todos with prefixes (e.g., `[adr]`)
+    - Matches them to projects with the same prefix
+    - Copies the entire todo hierarchy to the project page
+    - Preserves sub-items and completion status
+    - Avoids duplicates
 
 ### Calendar Integration
 
 Calendar events are automatically imported as toggle lists by date:
+
 ```
 > Sep 8 Mon
   - [ ] [Apple] Meeting at 10:00
   - [ ] [Personal] Gym at 18:00
 
-> Sep 9 Tue  
+> Sep 9 Tue
   - [ ] [Work] Project Review at 14:00
 ```
 
