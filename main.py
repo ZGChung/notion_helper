@@ -6,12 +6,14 @@ This script automates your todo list workflow by:
 1. Syncing calendar events to daily todo lists
 2. Copying todo items with prefixes to their corresponding project pages
 3. Generating weekly email reports based on completed tasks
+4. Creating email drafts in Mail.app for final review and sending
 
 Usage:
-    python main.py weekly-automation    # Run full weekly automation (steps 1-3)
+    python main.py weekly-automation    # Run full weekly automation (steps 1-4)
     python main.py sync-calendar       # Sync next week's calendar events
     python main.py sync-todos          # Sync todos with prefixes to project pages
     python main.py generate-email      # Generate weekly email only
+    python main.py mail-draft          # Create Mail.app draft from latest email
     python main.py test-config         # Test configuration and connections
     python main.py setup-cron          # Set up automated cron job
 """
@@ -29,6 +31,7 @@ from src.todo_parser import TodoParser
 from src.notion_api import NotionClient
 from src.email_generator import EmailGenerator
 from src.calendar_sync import CalendarSync
+from src.mail_draft import MailDraftCreator
 
 
 @click.group()
@@ -39,7 +42,7 @@ def cli():
 
 @cli.command()
 def weekly_automation():
-    """Run full weekly automation: sync calendar, sync todos to projects, generate email."""
+    """Run full weekly automation: sync calendar, sync todos, generate email, create Mail.app draft."""
     click.echo("🚀 Starting weekly automation...")
 
     try:
@@ -96,6 +99,16 @@ def weekly_automation():
 
             email_gen.save_email_draft_in_mail_app(email_content)
             click.echo("   ✅ Email draft saved to Mail.app")
+            
+            # Step 4: Create draft in Mail.app
+            click.echo("📮 Creating draft in Mail.app...")
+            mail_creator = MailDraftCreator()
+            mail_success = mail_creator.create_latest_draft()
+            
+            if mail_success:
+                click.echo("   ✅ Email draft created in Mail.app")
+            else:
+                click.echo("   ⚠️  Failed to create Mail.app draft (email file still saved)")
         else:
             click.echo("   ℹ️  No completed tasks found for email generation")
 
@@ -226,6 +239,37 @@ def sync_todos():
         import traceback
 
         traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+def mail_draft():
+    """Create email draft in Mail.app from latest generated email."""
+    click.echo("📮 Creating email draft in Mail.app...")
+
+    try:
+        mail_creator = MailDraftCreator()
+        
+        # Get latest email file
+        latest_file = mail_creator.get_latest_email_file()
+        if not latest_file:
+            click.echo("   ⚠️  No email files found in emails/ directory")
+            click.echo("   💡 Run 'python main.py generate-email' first")
+            return
+
+        click.echo(f"   📧 Using email file: {latest_file.name}")
+        
+        # Create draft
+        success = mail_creator.create_mail_draft(latest_file)
+        
+        if success:
+            click.echo("   ✅ Email draft created successfully in Mail.app")
+            click.echo("   📝 Draft window opened for editing")
+        else:
+            click.echo("   ❌ Failed to create email draft")
+            
+    except Exception as e:
+        click.echo(f"   ❌ Error creating mail draft: {e}")
         sys.exit(1)
 
 

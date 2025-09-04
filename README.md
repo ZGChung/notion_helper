@@ -4,11 +4,12 @@ Automate your workflow by integrating Notion todos, iCloud calendar, and email r
 
 ## Features
 
-🔄 **Automated 3-Step Workflow**
+🔄 **Automated 4-Step Workflow**
 
 1. **Calendar Sync**: Import iCloud calendar events to Notion daily todo lists
 2. **Todo Organization**: Copy todos with prefixes to their corresponding project pages
 3. **Weekly Reporting**: Generate professional email reports based on completed tasks
+4. **Mail Integration**: Create ready-to-send drafts in macOS Mail.app
 
 🤖 **AI-Powered Email Polishing**
 
@@ -178,13 +179,14 @@ Calendar events are automatically imported as toggle lists by date:
 ### Manual Commands
 
 ```bash
-# Run full 3-step automation (recommended)
+# Run full 4-step automation (recommended)
 python main.py weekly-automation
 
 # Individual operations
 python main.py sync-calendar       # Step 1: Sync next week's calendar events
 python main.py sync-todos          # Step 2: Copy todos to project pages
 python main.py generate-email      # Step 3: Generate weekly email report
+python main.py mail-draft          # Step 4: Create draft in Mail.app
 
 # Utility commands
 python main.py test-config         # Test configuration and connections
@@ -220,6 +222,7 @@ notion_helper/
 │   ├── notion_api.py      # Notion API integration
 │   ├── email_generator.py # Email report generation
 │   ├── email_prompt.py    # AI polishing prompt template
+│   ├── mail_draft.py      # Mail.app integration
 │   └── calendar_sync.py   # Calendar synchronization
 ├── test/                  # Test scripts for debugging
 └── README.md
@@ -251,14 +254,21 @@ notion_helper/
     - Check if selected calendars are accessible
     - Grant Calendar access to Terminal/Python in macOS System Settings
 
-4. **AI Email Polishing Issues**
+4. **Mail.app Integration Issues**
+
+    - Grant Terminal/Python access to Mail.app in macOS System Settings > Privacy & Security > Automation
+    - Ensure Mail.app is set up with at least one email account
+    - If AppleScript fails, check Console.app for detailed error messages
+    - Mail.app must be allowed to run (not blocked by security settings)
+
+5. **AI Email Polishing Issues**
 
     - Verify DeepSeek API key is correct in config
     - Check internet connection for API access
     - Ensure OpenAI library is installed: `pip install openai>=1.0.0`
     - If AI fails, the system falls back to unpolished email automatically
 
-5. **Cron Job Not Running**
+6. **Cron Job Not Running**
     - Check cron service is running: `sudo service cron status`
     - Verify cron job: `crontab -l`
     - Check logs: `tail -f ~/.notion_helper/automation.log`
