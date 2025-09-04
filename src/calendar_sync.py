@@ -7,6 +7,7 @@ from notion_client import Client
 import dateutil.parser
 import vobject
 import urllib3
+import requests
 
 from .config import get_config
 
@@ -47,12 +48,25 @@ class CalendarSync:
         self.config = get_config()
         self.notion = Client(auth=self.config.notion_token)
         
-        # Try different CalDAV URLs
+        # Generate iCloud-specific CalDAV URL
+        username = self.config.icloud_username
+        server_num = "160"  # This might need to be adjusted
+        
+        # Try different URL formats
         self.caldav_urls = [
-            "https://caldav.icloud.com",
-            f"https://p{self.config.icloud_username.split('@')[0]}-caldav.icloud.com",
-            "https://calendar.icloud.com",
+            f"https://p{server_num}-caldav.icloud.com/",
+            f"https://p{server_num}-caldav.icloud.com/{username}/",
+            f"https://p{server_num}-caldav.icloud.com/principalpath/{username}/",
+            f"https://caldav.icloud.com/{username}/",
+            f"https://caldav.icloud.com/principalpath/{username}/",
         ]
+        
+        # Custom headers for iCloud
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "Accept": "text/calendar,application/xml,application/json",
+            "Content-Type": "text/calendar; charset=utf-8",
+        }
 
     def _try_connect_caldav(self) -> caldav.DAVClient:
         """Try to connect to CalDAV server using different URLs."""
@@ -61,10 +75,23 @@ class CalendarSync:
         for url in self.caldav_urls:
             try:
                 print(f"\nTrying CalDAV URL: {url}")
+                
+                # First try a HEAD request to check the URL
+                response = requests.head(
+                    url,
+                    auth=(self.config.icloud_username, self.config.icloud_password),
+                    headers=self.headers,
+                    verify=False,
+                    timeout=10
+                )
+                print(f"HEAD request status: {response.status_code}")
+                
+                # Create CalDAV client
                 client = caldav.DAVClient(
                     url=url,
                     username=self.config.icloud_username,
                     password=self.config.icloud_password,
+                    headers=self.headers,
                     ssl_verify_cert=False
                 )
                 
@@ -103,6 +130,16 @@ class CalendarSync:
                 try:
                     cal_name = calendar.name
                     print(f"\nAccessing calendar: {cal_name}")
+                    
+                    # Get calendar properties
+                    try:
+                        props = calendar.get_properties([
+                            caldav.elements.dav.DisplayName(),
+                            caldav.elements.caldav.CalendarDescription()
+                        ])
+                        print(f"Calendar properties: {props}")
+                    except Exception as e:
+                        print(f"Error getting calendar properties: {e}")
                     
                     # Get events in the date range
                     events_in_calendar = calendar.search(
