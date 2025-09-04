@@ -87,10 +87,10 @@ class EmailGenerator:
         polished_body = self._polish_email_with_ai(email_body)
         if polished_body:
             email_body = polished_body
-            
+
         # Ensure markdown syntax is removed (fallback if AI didn't do it)
         email_body = self._strip_markdown_syntax(email_body)
-        
+
         if polished_body:
             print("   ✨ Email polished with DeepSeek AI")
 
@@ -117,15 +117,15 @@ class EmailGenerator:
     def _strip_markdown_syntax(self, text: str) -> str:
         """Strip markdown syntax from text as a fallback."""
         import re
-        
+
         # Remove **bold** and __bold__
-        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-        text = re.sub(r'__(.*?)__', r'\1', text)
-        
+        text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+        text = re.sub(r"__(.*?)__", r"\1", text)
+
         # Remove *italic* and _italic_
-        text = re.sub(r'\*(.*?)\*', r'\1', text)
-        text = re.sub(r'_(.*?)_', r'\1', text)
-        
+        text = re.sub(r"\*(.*?)\*", r"\1", text)
+        text = re.sub(r"_(.*?)_", r"\1", text)
+
         return text
 
     def _polish_email_with_ai(self, email_content: str) -> Optional[str]:
