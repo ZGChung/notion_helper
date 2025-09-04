@@ -45,7 +45,8 @@ class EmailGenerator:
         return {
             "subject": subject,
             "body": email_body,
-            "to": self.config.boss_email,
+            "to": ", ".join(self.config.email_to_list),
+            "cc": ", ".join(self.config.email_cc_list),
             "from": self.config.your_name,
         }
 

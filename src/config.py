@@ -3,7 +3,7 @@
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class Config:
@@ -90,6 +90,14 @@ class Config:
     def daily_todo_filename_pattern(self) -> str:
         """Get daily todo filename pattern."""
         return self._config['daily_todo_filename_pattern']
+    
+    def email_to_list(self) -> List[str]:
+        """Get email destination list."""
+        return self._config['email']['to_list']
+
+    def email_cc_list(self) -> List[str]:
+        """Get email CC list."""
+        return self._config['email']['cc_list']
     
     def get(self, key: str, default=None):
         """Get configuration value by key."""

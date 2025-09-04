@@ -15,6 +15,12 @@ paths:
 
 # Email configuration
 email:
+    to_list:
+        - "recipient1@example.com"
+        - "recipient2@example.com"
+    cc_list:
+        - "cc1@example.com"
+        - "cc2@example.com"
     boss_email: "boss@company.com"
     your_name: "Jayson Zhong"
     subject_template: "Weekly Update - {week_start} to {week_end}"
