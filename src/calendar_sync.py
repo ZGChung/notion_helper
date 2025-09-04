@@ -51,7 +51,7 @@ class CalendarSync:
         )
         # Apple Calendar uses a different URL
         self.apple_client = caldav.DAVClient(
-            url=f"https://p{self.config.icloud_username.split('@')[0]}-caldav.icloud.com",
+            url="https://calendar.icloud.com",  # Main Apple Calendar endpoint
             username=self.config.icloud_username,
             password=self.config.icloud_password
         )
