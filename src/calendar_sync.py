@@ -10,6 +10,7 @@ from .config import get_config
 
 class CalendarEvent:
     """Represents a calendar event."""
+
     def __init__(self, title: str, start: datetime, end: datetime = None):
         self.title = title
         self.start = start
@@ -20,19 +21,16 @@ class CalendarEvent:
         time_str = self.start.strftime("%H:%M")
         if self.end:
             time_str += f"-{self.end.strftime('%H:%M')}"
-        
+
         return {
             "object": "block",
             "type": "to_do",
             "to_do": {
-                "rich_text": [{
-                    "type": "text",
-                    "text": {
-                        "content": f"{self.title} at {time_str}"
-                    }
-                }],
-                "checked": False
-            }
+                "rich_text": [
+                    {"type": "text", "text": {"content": f"{self.title} at {time_str}"}}
+                ],
+                "checked": False,
+            },
         }
 
 
@@ -41,30 +39,36 @@ class CalendarSync:
 
     def __init__(self):
         self.config = get_config()
+        # Use global endpoint since China endpoint has issues
         self.api = pyicloud.PyiCloudService(
             self.config.icloud_username,
-            self.config.icloud_password
+            self.config.icloud_password,
+            china_mainland=False  # Use global endpoint
         )
         self.notion = Client(auth=self.config.notion_token)
 
-    def fetch_calendar_events(self, start_date: datetime, end_date: datetime) -> List[CalendarEvent]:
+    def fetch_calendar_events(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[CalendarEvent]:
         """Fetch calendar events from iCloud."""
         calendar = self.api.calendar
         events = []
-        
+
         for event in calendar.events(start_date, end_date):
-            events.append(CalendarEvent(
-                title=event.get('title'),
-                start=event.get('startDate'),
-                end=event.get('endDate')
-            ))
-        
+            events.append(
+                CalendarEvent(
+                    title=event.get("title"),
+                    start=event.get("startDate"),
+                    end=event.get("endDate"),
+                )
+            )
+
         return events
 
     def sync_to_notion(self, start_date: datetime, end_date: datetime) -> None:
         """Sync calendar events to Notion for the specified date range."""
         events = self.fetch_calendar_events(start_date, end_date)
-        
+
         # Group events by date
         events_by_date = {}
         for event in events:
@@ -72,58 +76,65 @@ class CalendarSync:
             if date_key not in events_by_date:
                 events_by_date[date_key] = []
             events_by_date[date_key].append(event)
-        
+
         # Update Notion
         for date, date_events in events_by_date.items():
             self._update_notion_todos(date, date_events)
 
-    def _update_notion_todos(self, date: datetime.date, events: List[CalendarEvent]) -> None:
+    def _update_notion_todos(
+        self, date: datetime.date, events: List[CalendarEvent]
+    ) -> None:
         """Update Notion page with calendar events."""
         # Convert events to Notion blocks
         blocks = []
-        
+
         # Add date header if events exist
         if events:
-            blocks.append({
-                "object": "block",
-                "type": "heading_2",
-                "heading_2": {
-                    "rich_text": [{
-                        "type": "text",
-                        "text": {
-                            "content": f"Calendar Events for {date.strftime('%Y-%m-%d')}"
-                        }
-                    }]
+            blocks.append(
+                {
+                    "object": "block",
+                    "type": "heading_2",
+                    "heading_2": {
+                        "rich_text": [
+                            {
+                                "type": "text",
+                                "text": {
+                                    "content": f"Calendar Events for {date.strftime('%Y-%m-%d')}"
+                                },
+                            }
+                        ]
+                    },
                 }
-            })
-        
+            )
+
         # Add events as todo items
         for event in events:
             blocks.append(event.to_notion_todo())
-        
+
         # Append blocks to Notion page
         if blocks:
             self.notion.blocks.children.append(
-                block_id=self.config.daily_log_page_id,
-                children=blocks
+                block_id=self.config.daily_log_page_id, children=blocks
             )
 
-    def preview_sync(self, start_date: datetime, end_date: datetime) -> Dict[str, List[str]]:
+    def preview_sync(
+        self, start_date: datetime, end_date: datetime
+    ) -> Dict[str, List[str]]:
         """Preview calendar events that would be synced."""
         events = self.fetch_calendar_events(start_date, end_date)
-        
+
         # Group events by date
         preview = {}
         for event in events:
             date_key = event.start.strftime("%Y-%m-%d")
             if date_key not in preview:
                 preview[date_key] = []
-            
+
             time_str = event.start.strftime("%H:%M")
             if event.end:
-                time_str += f"-{event.end.strftime('%H:%M")}"
+                time_str += f"-{event.end.strftime('%H:%M')}"
             preview[date_key].append(f"{event.title} at {time_str}")
-        
+
         return preview
 
     def sync_next_week(self) -> None:
@@ -132,5 +143,5 @@ class CalendarSync:
         days_until_monday = 7 - today.weekday()
         next_monday = today + timedelta(days=days_until_monday)
         next_sunday = next_monday + timedelta(days=6)
-        
+
         self.sync_to_notion(next_monday, next_sunday)

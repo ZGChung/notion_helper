@@ -2,6 +2,7 @@ from pyicloud import PyiCloudService
 import yaml
 import logging
 import keyring
+import os
 from datetime import datetime, timedelta
 
 # Set up debug logging
@@ -15,24 +16,37 @@ def load_config():
         return config["icloud"]["username"], config["icloud"]["password"]
 
 
-def store_in_keyring():
-    """Store credentials in system keyring."""
-    username, password = load_config()
-    print(f"Storing credentials for {username} in keyring...")
-    keyring.set_password("pyicloud", username, password)
-    return username
+def check_safari_cookies():
+    """Check Safari cookies directory."""
+    cookie_paths = [
+        os.path.expanduser(
+            "~/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies"
+        ),
+        os.path.expanduser("~/Library/Cookies/Cookies.binarycookies"),
+    ]
+
+    for path in cookie_paths:
+        if os.path.exists(path):
+            print(f"Found cookies at: {path}")
+            return os.path.dirname(path)
+
+    print("No Safari cookie files found")
+    return None
 
 
 def test_icloud_connection():
-    # Store and retrieve from keyring
-    username = store_in_keyring()
+    username, password = load_config()
     print(f"Using email: {username}")
-    print("Using credentials from keyring")
+
+    # Check Safari cookies
+    cookie_dir = check_safari_cookies()
+    print("Cookie directory:", cookie_dir)
 
     try:
         print("\nAttempting to connect to iCloud...")
-        # Use only username, password will be fetched from keyring
-        api = PyiCloudService(username, china_mainland=True)
+        api = PyiCloudService(
+            username, password, china_mainland=True, cookie_directory=cookie_dir
+        )
 
         print("\n✅ Successfully authenticated with iCloud")
 
