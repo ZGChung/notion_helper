@@ -1,12 +1,20 @@
 """Email generator for weekly update reports."""
 
+import os
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pathlib import Path
 
 from .config import get_config
 from .todo_parser import TodoItem
+from .email_prompt import EMAIL_POLISHING_PROMPT
 import appscript
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 
 class EmailGenerator:
@@ -14,6 +22,27 @@ class EmailGenerator:
 
     def __init__(self):
         self.config = get_config()
+        self.deepseek_client = self._init_deepseek_client()
+
+    def _init_deepseek_client(self) -> Optional[openai.OpenAI]:
+        """Initialize DeepSeek API client."""
+        if not OPENAI_AVAILABLE:
+            print("Warning: OpenAI library not available. AI polishing disabled.")
+            return None
+        
+        try:
+            api_key = self.config.deepseek_api_key
+            if api_key and api_key != "YOUR_DEEPSEEK_API_KEY":
+                return openai.OpenAI(
+                    api_key=api_key,
+                    base_url="https://api.deepseek.com"
+                )
+            else:
+                print("Warning: DeepSeek API key not configured. AI polishing disabled.")
+                return None
+        except Exception as e:
+            print(f"Warning: Failed to initialize DeepSeek client: {e}")
+            return None
 
     def generate_weekly_email(
         self,
@@ -42,6 +71,12 @@ class EmailGenerator:
             week_end=week_end.strftime("%B %d, %Y"),
         )
 
+        # Polish email with AI if available
+        polished_body = self._polish_email_with_ai(email_body)
+        if polished_body:
+            email_body = polished_body
+            print("   ✨ Email polished with DeepSeek AI")
+
         return {
             "subject": subject,
             "body": email_body,
@@ -50,13 +85,44 @@ class EmailGenerator:
             "from": self.config.your_name,
         }
 
+    def _polish_email_with_ai(self, email_content: str) -> Optional[str]:
+        """Polish email content using DeepSeek AI."""
+        if not self.deepseek_client:
+            return None
+        
+        try:
+            prompt = EMAIL_POLISHING_PROMPT.format(email_content=email_content)
+            
+            response = self.deepseek_client.chat.completions.create(
+                model=self.config.deepseek_model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.config.deepseek_temperature,
+                max_tokens=self.config.deepseek_max_tokens,
+                timeout=30  # 30 second timeout
+            )
+            
+            polished_content = response.choices[0].message.content.strip()
+            return polished_content
+            
+        except Exception as e:
+            print(f"   ⚠️  AI polishing failed: {e}")
+            print("   📝 Using original content")
+            return None
+
     def save_email_draft(
         self, email_content: Dict[str, str], output_path: str = None
     ) -> str:
-        """Save email draft to file."""
+        """Save email draft to emails/ folder with date-only filename."""
         if output_path is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"weekly_update_{timestamp}.txt"
+            # Create emails directory if it doesn't exist
+            emails_dir = Path("emails")
+            emails_dir.mkdir(exist_ok=True)
+            
+            # Use current date for filename
+            date_str = datetime.now().strftime("%Y%m%d")
+            output_path = emails_dir / f"weekly_update_{date_str}.txt"
 
         output_file = Path(output_path)
 

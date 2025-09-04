@@ -31,6 +31,13 @@ email:
     your_name: "Your Name"
     subject_template: "Weekly Update - {week_start} to {week_end}"
 
+# DeepSeek AI configuration for email polishing
+deepseek:
+    api_key: "YOUR_DEEPSEEK_API_KEY"  # Get from https://platform.deepseek.com
+    model: "deepseek-chat"
+    temperature: 0.7
+    max_tokens: 2000
+
 # Timezone
 timezone: "Asia/Shanghai" # China Time
 

@@ -10,6 +10,12 @@ Automate your workflow by integrating Notion todos, iCloud calendar, and email r
 2. **Todo Organization**: Copy todos with prefixes to their corresponding project pages
 3. **Weekly Reporting**: Generate professional email reports based on completed tasks
 
+🤖 **AI-Powered Email Polishing**
+- Automatic email style enhancement using DeepSeek AI
+- Professional formatting with numbered sections and bullet points
+- Preserves @mentions and technical details while improving readability
+- Falls back gracefully if AI service is unavailable
+
 📅 **Smart Calendar Integration**
 
 -   Import iCloud calendar events to Notion
@@ -99,11 +105,26 @@ timezone: "Asia/Shanghai" # Your timezone
 4. Enter a name (e.g., "Notion Helper") and copy the generated password
 5. Add the password to your config file
 6. List the calendars you want to sync in the config file
-    - Open Calendar.app to see your calendar names
-    - Add them to the `calendars` list in your config
-    - Leave the list empty to sync all calendars
+   - Open Calendar.app to see your calendar names
+   - Add them to the `calendars` list in your config
+   - Leave the list empty to sync all calendars
 
-### 5. Test Configuration
+### 5. Setup DeepSeek AI (Optional)
+
+For AI-powered email polishing:
+
+1. Go to https://platform.deepseek.com
+2. Sign up and get your API key
+3. Add the API key to your config file:
+   ```yaml
+   deepseek:
+     api_key: "your_actual_api_key_here"
+   ```
+4. Install the OpenAI library: `pip install openai>=1.0.0`
+
+**Note**: Email generation works without DeepSeek - it just won't include AI polishing.
+
+### 6. Test Configuration
 
 ```bash
 python main.py test-config
@@ -190,12 +211,14 @@ notion_helper/
 ├── email_template.txt     # Email template
 ├── requirements.txt       # Python dependencies
 ├── setup_cron.sh         # Cron setup script
+├── emails/                # Generated email drafts (AI-polished)
 ├── src/
 │   ├── __init__.py
 │   ├── config.py          # Configuration management
 │   ├── todo_parser.py     # Todo parsing and project sync
 │   ├── notion_api.py      # Notion API integration
 │   ├── email_generator.py # Email report generation
+│   ├── email_prompt.py    # AI polishing prompt template
 │   └── calendar_sync.py   # Calendar synchronization
 ├── test/                  # Test scripts for debugging
 └── README.md
@@ -227,7 +250,14 @@ notion_helper/
     - Check if selected calendars are accessible
     - Grant Calendar access to Terminal/Python in macOS System Settings
 
-4. **Cron Job Not Running**
+4. **AI Email Polishing Issues**
+
+    - Verify DeepSeek API key is correct in config
+    - Check internet connection for API access
+    - Ensure OpenAI library is installed: `pip install openai>=1.0.0`
+    - If AI fails, the system falls back to unpolished email automatically
+
+5. **Cron Job Not Running**
     - Check cron service is running: `sudo service cron status`
     - Verify cron job: `crontab -l`
     - Check logs: `tail -f ~/.notion_helper/automation.log`

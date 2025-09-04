@@ -101,6 +101,29 @@ class Config:
         return self._config["email"]["cc_list"]
 
     # -------------------------------
+    # DeepSeek AI Configuration  
+    # -------------------------------
+    @property
+    def deepseek_api_key(self) -> str:
+        """Get DeepSeek API key."""
+        return self._config["deepseek"]["api_key"]
+    
+    @property
+    def deepseek_model(self) -> str:
+        """Get DeepSeek model name."""
+        return self._config["deepseek"]["model"]
+    
+    @property
+    def deepseek_temperature(self) -> float:
+        """Get DeepSeek temperature setting."""
+        return self._config["deepseek"]["temperature"]
+    
+    @property
+    def deepseek_max_tokens(self) -> int:
+        """Get DeepSeek max tokens setting."""
+        return self._config["deepseek"]["max_tokens"]
+
+    # -------------------------------
     # Generic getter
     # -------------------------------
     def get(self, key: str, default=None):
