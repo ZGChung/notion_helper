@@ -52,7 +52,9 @@ class MailDraftCreator:
 
             # Extract body (everything after the separator line)
             if body_start_index < len(lines):
-                body_lines = lines[body_start_index + 1:]  # Skip empty line after separator
+                body_lines = lines[
+                    body_start_index + 1 :
+                ]  # Skip empty line after separator
                 email_data["body"] = "\n".join(body_lines).strip()
 
             return email_data
@@ -88,7 +90,7 @@ class MailDraftCreator:
             if success:
                 self._send_notification(
                     "Email Draft Created",
-                    f"Draft created in Mail.app\nSubject: {email_data['subject'][:50]}..."
+                    f"Draft created in Mail.app\nSubject: {email_data['subject'][:50]}...",
                 )
                 return True
             else:
@@ -106,18 +108,20 @@ class MailDraftCreator:
             # Escape special characters for AppleScript
             to_recipients = email_data["to"].replace('"', '\\"')
             subject = email_data["subject"].replace('"', '\\"')
-            body = email_data["body"].replace('"', '\\"').replace("\n", "\\n")
             cc_recipients = email_data.get("cc", "").replace('"', '\\"')
 
+            # Convert markdown to rich text or fallback to plain text
+            formatted_body = self._convert_markdown_to_richtext(email_data["body"])
+
             # Build AppleScript
-            applescript = f'''
+            applescript = f"""
             tell application "Mail"
                 activate
                 
                 set newMessage to make new outgoing message with properties {{subject:"{subject}"}}
                 
                 tell newMessage
-                    set the content to "{body}"
+                    {formatted_body}
                     
                     -- Add To recipients
                     set recipientList to my splitString("{to_recipients}", ", ")
@@ -150,7 +154,7 @@ class MailDraftCreator:
                 set AppleScript's text item delimiters to ""
                 return theList
             end splitString
-            '''
+            """
 
             # Execute AppleScript
             process = subprocess.Popen(
@@ -175,9 +179,9 @@ class MailDraftCreator:
         """Send macOS native notification."""
         try:
             # Use osascript to send notification
-            applescript = f'''
+            applescript = f"""
             display notification "{message}" with title "{title}" sound name "default"
-            '''
+            """
 
             subprocess.run(
                 ["osascript", "-e", applescript],
@@ -187,6 +191,29 @@ class MailDraftCreator:
 
         except Exception as e:
             print(f"Failed to send notification: {e}")
+
+    def _convert_markdown_to_richtext(self, body: str) -> str:
+        """Convert markdown to clean plain text for Mail.app."""
+        try:
+            # Simple approach: strip markdown syntax and use plain text
+            # This is more reliable than complex rich text formatting
+
+            # Remove **bold** markers but keep the text
+            import re
+
+            clean_body = re.sub(r"\*\*(.*?)\*\*", r"\1", body)
+
+            # Escape quotes for AppleScript
+            clean_body_escaped = clean_body.replace('"', '\\"')
+
+            # Return simple content setting
+            return f'set the content to "{clean_body_escaped}"'
+
+        except Exception as e:
+            print(f"Markdown conversion failed: {e}, using plain text")
+            # Fallback to original body
+            body_escaped = body.replace('"', '\\"')
+            return f'set the content to "{body_escaped}"'
 
     def create_latest_draft(self) -> bool:
         """Create a draft from the latest email file."""

@@ -29,7 +29,7 @@ email:
         - "cc1@example.com"
         - "cc2@example.com"
     your_name: "Your Name"
-    subject_template: "Weekly Update - {week_start} to {week_end}"
+    subject_template: "Weekly update - {week_start} to {week_end}"
 
 # DeepSeek AI configuration for email polishing
 deepseek:

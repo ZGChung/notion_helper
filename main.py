@@ -99,16 +99,18 @@ def weekly_automation():
 
             email_gen.save_email_draft_in_mail_app(email_content)
             click.echo("   ✅ Email draft saved to Mail.app")
-            
+
             # Step 4: Create draft in Mail.app
             click.echo("📮 Creating draft in Mail.app...")
             mail_creator = MailDraftCreator()
             mail_success = mail_creator.create_latest_draft()
-            
+
             if mail_success:
                 click.echo("   ✅ Email draft created in Mail.app")
             else:
-                click.echo("   ⚠️  Failed to create Mail.app draft (email file still saved)")
+                click.echo(
+                    "   ⚠️  Failed to create Mail.app draft (email file still saved)"
+                )
         else:
             click.echo("   ℹ️  No completed tasks found for email generation")
 
@@ -249,7 +251,7 @@ def mail_draft():
 
     try:
         mail_creator = MailDraftCreator()
-        
+
         # Get latest email file
         latest_file = mail_creator.get_latest_email_file()
         if not latest_file:
@@ -258,16 +260,16 @@ def mail_draft():
             return
 
         click.echo(f"   📧 Using email file: {latest_file.name}")
-        
+
         # Create draft
         success = mail_creator.create_mail_draft(latest_file)
-        
+
         if success:
             click.echo("   ✅ Email draft created successfully in Mail.app")
             click.echo("   📝 Draft window opened for editing")
         else:
             click.echo("   ❌ Failed to create email draft")
-            
+
     except Exception as e:
         click.echo(f"   ❌ Error creating mail draft: {e}")
         sys.exit(1)

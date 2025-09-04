@@ -1,59 +1,47 @@
-To: recipient1@example.com, recipient2@example.com
+To: peng_chang@apple.com
 From: Jayson Zhong
-Subject: Weekly Update - September 01 to September 07, 2025
+Subject: Weekly update - 47
 
 ==================================================
 
 Dear Paul,
 
-I am writing to summarize my progress in the past week. This week I focused on project development across several key initiatives.
+I am writing to summarize my progress in the past week. This week I focused on advancing core project development and providing data infrastructure support.
 
-1. **[CH: Chengdu Travel]**
-	On track.
-	a. Completed daily travel to Chengdu from 09/01 to 09/07
-	b. Attended daily meetings with you (@Paul) with no specific project discussions
-
-2. **[ADR: Auto Drawing Review]**
+1. [ADR: Auto Drawing Review]
 	On track.
 	a. Improved the JSON converter and pivoted the fastML version of ADR
-	b. Updated ADR slides and participated in Phase II discussions
-	c. Synced with @Jane and coordinated meeting times with Jiyu, Simon, and Sahib
-	d. Reached out to other LOBs to inform them about the rule config tool
-	e. Attended the Watch Team rule integration KO meeting and updated the rule config tool
-	f. Provided parsing results to @Chuan
+	b. Updated ADR slides and participated in Phase II discussions with @Jane
+	c. Coordinated meeting times with Jiyu, Simon, and Sahib
+	d. Reached out to other LOBs to inform them about the rule config tool and provided parsing results to @Chuan
 
-3. **[RAMP]**
+2. [ST: Dim/ORT/CPK Smart Tool]
 	On track.
-	a. Conducted daily follow-up on the white dot issue from 09/01 to 09/07
+	a. Conducted T1 tracker activities and checked the Smart Tool data pipeline
+	b. Fixed bugs in the T1 tab and resolved the New IO data tab issues
+	c. Addressed UMP T1 tab ordering issues and updated the T1 spec file
+	d. Continued Smart Tool development throughout the week
 
-4. **[ST: Smart Tool]**
+3. [CO: Comma Auto Dorado]
 	On track.
-	a. Monitored the T1 tracker and checked the Smart Tool data pipeline
-	b. Fixed the New IO data tab and resolved the UMP T1 tab’s ordering issue
-	c. Updated the T1 spec file and continued Smart Tool development
-	d. Addressed a bug in the T1 tab
+	a. Worked on fixing the jayson-demo app throughout the week
 
-5. **[INF: Infrastructure]**
+4. [TDA: Trace Data Audit]
 	On track.
-	a. Performed daily deployment tasks for Zihan from 09/01 to 09/07
+	a. Enhanced TDA to support more statistical methods
+	b. Contacted Jason Li to learn about Data Audit on Trace
 
-6. **[DE: Data Engineering]**
+5. [RAMP: Ramp Data Support]
 	On track.
-	a. Fixed the jayson-demo app and contacted Jason Li to learn about Data Audit on Trace
-	b. Continued integration of data cleaning for the Comma project
+	a. Conducted ongoing follow-up on the white dot issue throughout the week
 
-7. **[TDA]**
+6. [INF: Data Infrastructure]
 	On track.
-	a. Worked on supporting additional statistical methods from 09/01 to 09/07
+	a. Provided deployment support for Zihan throughout the week
 
-8. **[RD: Research & Development]**
-	On track.
-	a. Applied to join Interlinked Research
-	b. Optimized the project record workflow and organized the idea page
-
-**Remark:** This week involved significant travel to Chengdu alongside ongoing development across multiple projects. All initiatives are progressing as planned. The repeated daily tasks indicate continuous iterative development rather than blocked items.
+Remark: The "ch" items related to Chengdu travel and meetings have been excluded from this project update as they represent logistical activities rather than project work. All technical projects remain on track with consistent progress throughout the week.
 
 Best regards,
 
-Jayson Zhong  
+Jayson Zhong
 Apple

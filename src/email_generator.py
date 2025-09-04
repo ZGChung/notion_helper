@@ -79,16 +79,19 @@ class EmailGenerator:
                 completed_tasks_by_project, week_start, week_end
             )
 
-        # Generate subject
-        subject = self.config.email_subject_template.format(
-            week_start=week_start.strftime("%B %d"),
-            week_end=week_end.strftime("%B %d, %Y"),
-        )
+        # Generate subject with week number
+        week_number = self._calculate_week_number(week_start)
+        subject = f"Weekly update - {week_number}"
 
         # Polish email with AI if available
         polished_body = self._polish_email_with_ai(email_body)
         if polished_body:
             email_body = polished_body
+            
+        # Ensure markdown syntax is removed (fallback if AI didn't do it)
+        email_body = self._strip_markdown_syntax(email_body)
+        
+        if polished_body:
             print("   ✨ Email polished with DeepSeek AI")
 
         return {
@@ -98,6 +101,32 @@ class EmailGenerator:
             "cc": ", ".join(self.config.email_cc_list()),
             "from": self.config.your_name,
         }
+
+    def _calculate_week_number(self, week_start: datetime) -> int:
+        """Calculate week number based on Sept 1-7, 2025 = week 47."""
+        # Reference: Sept 1, 2025 (Monday) = week 47
+        reference_date = datetime(2025, 9, 1)  # Sept 1, 2025
+        reference_week = 47
+
+        # Calculate the difference in weeks
+        days_diff = (week_start - reference_date).days
+        weeks_diff = days_diff // 7
+
+        return reference_week + weeks_diff
+
+    def _strip_markdown_syntax(self, text: str) -> str:
+        """Strip markdown syntax from text as a fallback."""
+        import re
+        
+        # Remove **bold** and __bold__
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'__(.*?)__', r'\1', text)
+        
+        # Remove *italic* and _italic_
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
+        text = re.sub(r'_(.*?)_', r'\1', text)
+        
+        return text
 
     def _polish_email_with_ai(self, email_content: str) -> Optional[str]:
         """Polish email content using DeepSeek AI."""

@@ -44,10 +44,13 @@ Apple
 - Maintain all technical terms and project names exactly
 - Keep @mentions in the same format
 - Preserve specific numbers, dates, and metrics
+- **REMOVE ALL MARKDOWN SYNTAX**: Convert **bold** to plain text, remove any *, **, _, __, etc.
 - Make the language more executive-friendly while keeping technical accuracy
 - Ensure each project section flows logically from general to specific
 - Remove any redundant information
 - Make sure the tone is confident and progress-focused
+- The available project names are: [ADR: Auto Drawing Review], [ST: Dim/ORT/CPK Smart Tool], [CO: Comma Auto Dorado], [TDA: Trace Data Audit], [RAMP: Ramp Data Support], [INF: Data Infrastructure]
+- Only include the project names that are available in the list above. Ignore the other items. Write the projects following the order above.
 
 Please rewrite this email following the above style:
 
