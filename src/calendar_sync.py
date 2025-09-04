@@ -241,7 +241,7 @@ class CalendarSync:
                 print(f"  • {calendar_info}{event.title}")
             
             self.notion.blocks.children.append(
-                block_id=self.config.daily_log_page_id, 
+                block_id=self.config.daily_log_page_id,
                 children=blocks
             )
 
