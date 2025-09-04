@@ -103,15 +103,22 @@ class CalendarSync:
         events_script = f"""
             tell application "Calendar"
                 set output to ""
-                set start_date to date "{start_date.strftime('%Y-%m-%d')}"
-                set end_date to date "{end_date.strftime('%Y-%m-%d')}"
+                set start_date to current date
+                set start_date's year to {start_date.year}
+                set start_date's month to {start_date.month}
+                set start_date's day to {start_date.day}
+                
+                set end_date to current date
+                set end_date's year to {end_date.year}
+                set end_date's month to {end_date.month}
+                set end_date's day to {end_date.day}
                 
                 repeat with cal_name in {{{calendar_list}}}
                     try
                         set cal to first calendar whose name is cal_name
                         set output to output & "Calendar:" & cal_name & linefeed
                         
-                        set theEvents to (every event of cal whose start date ≥ start_date and start date ≤ end_date)
+                        set theEvents to (every event of cal whose start date is greater than or equal to start_date and start date is less than or equal to end_date)
                         repeat with evt in theEvents
                             set output to output & "Event:" & summary of evt & linefeed
                             set output to output & "Start:" & ((start date of evt) as string) & linefeed
