@@ -124,11 +124,8 @@ def sync_calendar():
             if len(events) > 3:
                 click.echo(f"      ... and {len(events) - 3} more")
 
-        if click.confirm("   Proceed with sync?"):
-            calendar_sync.sync_next_week()
-            click.echo("   ✅ Calendar sync completed")
-        else:
-            click.echo("   Sync cancelled")
+        calendar_sync.sync_next_week()
+        click.echo("   ✅ Calendar sync completed")
 
     except Exception as e:
         click.echo(f"❌ Error syncing calendar: {e}")

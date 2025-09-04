@@ -161,8 +161,15 @@ class CalendarSync:
 
         # Append blocks to Notion page
         if blocks:
+            print(f"\nAdding {len(blocks)} blocks to Notion page {self.config.daily_log_page_id}:")
+            print("- Header:", blocks[0]["heading_2"]["rich_text"][0]["text"]["content"])
+            print("- Events:")
+            for block in blocks[1:]:  # Skip header
+                print(f"  • {block['to_do']['rich_text'][0]['text']['content']}")
+            
             self.notion.blocks.children.append(
-                block_id=self.config.daily_log_page_id, children=blocks
+                block_id=self.config.daily_log_page_id, 
+                children=blocks
             )
 
     def preview_sync(
