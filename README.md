@@ -63,7 +63,12 @@ paths:
 
 # Email configuration
 email:
-  boss_email: "boss@company.com"
+  to_list:
+    - "recipient1@example.com"
+    - "recipient2@example.com"
+  cc_list:
+    - "cc1@example.com"
+    - "cc2@example.com"
   your_name: "Your Name"
   subject_template: "Weekly Update - {week_start} to {week_end}"
 
