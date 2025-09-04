@@ -12,19 +12,24 @@ from .config import get_config
 class CalendarEvent:
     """Represents a calendar event."""
 
-    def __init__(self, title: str, start: datetime, end: datetime = None):
+    def __init__(self, title: str, start: datetime, end: datetime = None, calendar_name: str = None):
         self.title = title
         self.start = start
         self.end = end
+        self.calendar_name = calendar_name
 
     def to_notion_todo(self) -> Dict[str, Any]:
         """Convert calendar event to Notion todo block."""
+        content = self.title
+        if self.calendar_name:
+            content = f"[{self.calendar_name}] {content}"
+            
         return {
             "object": "block",
             "type": "to_do",
             "to_do": {
                 "rich_text": [
-                    {"type": "text", "text": {"content": self.title}}
+                    {"type": "text", "text": {"content": content}}
                 ],
                 "checked": False,
             },
@@ -47,65 +52,78 @@ class CalendarSync:
     def fetch_calendar_events(
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
-        """Fetch calendar events from iCloud."""
+        """Fetch calendar events from all iCloud calendars."""
         calendar = self.api.calendar
         events = []
 
-        # Get events from calendar service
+        # Get all available calendars
         try:
-            # Try to get events directly
-            raw_events = calendar.get_events(start_date, end_date)
+            calendars = calendar.get_all_calendars()
         except AttributeError:
-            # If get_events doesn't exist, try accessing events property
+            # If get_all_calendars doesn't exist, try getting events directly
+            calendars = [calendar]  # Use main calendar as fallback
+
+        # Process each calendar
+        for cal in calendars:
+            calendar_name = getattr(cal, 'title', None)
+            
+            # Get events from calendar
             try:
-                raw_events = calendar.events
+                raw_events = cal.get_events(start_date, end_date)
             except AttributeError:
-                # If neither works, try accessing raw calendar data
-                raw_events = calendar.get("Event", [])
+                try:
+                    raw_events = cal.events
+                except AttributeError:
+                    raw_events = cal.get("Event", [])
 
-        # Process events
-        for event in raw_events:
-            # Handle different event formats
-            if isinstance(event, dict):
-                title = event.get("title") or event.get("summary")
-                start = event.get("startDate") or event.get("start")
-                end = event.get("endDate") or event.get("end")
-            else:
-                # If event is an object
-                title = getattr(event, "title", None) or getattr(event, "summary", None)
-                start = getattr(event, "startDate", None) or getattr(
-                    event, "start", None
-                )
-                end = getattr(event, "endDate", None) or getattr(event, "end", None)
+            # Process events
+            for event in raw_events:
+                # Handle different event formats
+                if isinstance(event, dict):
+                    title = event.get("title") or event.get("summary")
+                    start = event.get("startDate") or event.get("start")
+                    end = event.get("endDate") or event.get("end")
+                else:
+                    # If event is an object
+                    title = getattr(event, "title", None) or getattr(event, "summary", None)
+                    start = getattr(event, "startDate", None) or getattr(
+                        event, "start", None
+                    )
+                    end = getattr(event, "endDate", None) or getattr(event, "end", None)
 
-            # Parse dates if needed
-            try:
-                if isinstance(start, (list, tuple)):
-                    # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
-                    year = start[1]
-                    month = start[2]
-                    day = start[3]
-                    hour = start[4]
-                    minute = start[5]
-                    start = datetime(year, month, day, hour, minute)
-                
-                if isinstance(end, (list, tuple)):
-                    year = end[1]
-                    month = end[2]
-                    day = end[3]
-                    hour = end[4]
-                    minute = end[5]
-                    end = datetime(year, month, day, hour, minute)
-                
-                elif isinstance(start, str):
-                    start = dateutil.parser.parse(start)
-                elif isinstance(end, str):
-                    end = dateutil.parser.parse(end)
+                # Parse dates if needed
+                try:
+                    if isinstance(start, (list, tuple)):
+                        # Format: [YYYYMMDD, YYYY, MM, DD, HH, MM, Offset]
+                        year = start[1]
+                        month = start[2]
+                        day = start[3]
+                        hour = start[4]
+                        minute = start[5]
+                        start = datetime(year, month, day, hour, minute)
+                    
+                    if isinstance(end, (list, tuple)):
+                        year = end[1]
+                        month = end[2]
+                        day = end[3]
+                        hour = end[4]
+                        minute = end[5]
+                        end = datetime(year, month, day, hour, minute)
+                    
+                    elif isinstance(start, str):
+                        start = dateutil.parser.parse(start)
+                    elif isinstance(end, str):
+                        end = dateutil.parser.parse(end)
 
-                if title and start:
-                    events.append(CalendarEvent(title=title, start=start, end=end))
-            except Exception as e:
-                print(f"Error processing event: {e}")
+                    if title and start:
+                        events.append(CalendarEvent(
+                            title=title,
+                            start=start,
+                            end=end,
+                            calendar_name=calendar_name
+                        ))
+                except Exception as e:
+                    print(f"Error processing event: {e}")
 
         return events
 
@@ -129,39 +147,37 @@ class CalendarSync:
         self, date: datetime.date, events: List[CalendarEvent]
     ) -> None:
         """Update Notion page with calendar events."""
-        # Convert events to Notion blocks
-        blocks = []
+        if not events:
+            return
 
-        # Add date header if events exist
-        if events:
-            blocks.append(
-                {
-                    "object": "block",
-                    "type": "heading_2",
-                    "heading_2": {
-                        "rich_text": [
-                            {
-                                "type": "text",
-                                "text": {
-                                    "content": f"Calendar Events for {date.strftime('%Y-%m-%d')}"
-                                },
-                            }
-                        ]
-                    },
+        # Format date as "Sep 1 Mon"
+        date_str = date.strftime("%b %-d %a")
+
+        # Create toggle block with events as children
+        blocks = [
+            {
+                "object": "block",
+                "type": "toggle",
+                "toggle": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {"content": date_str}
+                        }
+                    ],
+                    "color": "default",
+                    "children": [event.to_notion_todo() for event in events]
                 }
-            )
-
-        # Add events as todo items
-        for event in events:
-            blocks.append(event.to_notion_todo())
+            }
+        ]
 
         # Append blocks to Notion page
         if blocks:
-            print(f"\nAdding {len(blocks)} blocks to Notion page {self.config.daily_log_page_id}:")
-            print("- Header:", blocks[0]["heading_2"]["rich_text"][0]["text"]["content"])
-            print("- Events:")
-            for block in blocks[1:]:  # Skip header
-                print(f"  • {block['to_do']['rich_text'][0]['text']['content']}")
+            print(f"\nAdding toggle list '{date_str}' with {len(events)} events to Notion page:")
+            print(f"- Events under '{date_str}':")
+            for event in events:
+                calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
+                print(f"  • {calendar_info}{event.title}")
             
             self.notion.blocks.children.append(
                 block_id=self.config.daily_log_page_id, 
@@ -181,10 +197,11 @@ class CalendarSync:
             if date_key not in preview:
                 preview[date_key] = []
 
+            calendar_info = f"[{event.calendar_name}] " if event.calendar_name else ""
             time_str = event.start.strftime("%H:%M")
             if event.end:
                 time_str += f"-{event.end.strftime('%H:%M')}"
-            preview[date_key].append(f"{event.title} at {time_str}")
+            preview[date_key].append(f"{calendar_info}{event.title} at {time_str}")
 
         return preview
 
