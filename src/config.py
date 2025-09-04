@@ -3,7 +3,7 @@
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 class Config:
@@ -64,14 +64,22 @@ class Config:
         return self._config["icloud"]["password"]
 
     @property
+    def icloud_calendars(self) -> Optional[List[str]]:
+        """Get list of calendars to sync.
+        
+        Returns:
+            List of calendar names to sync, or None if not configured.
+            Empty list means sync all calendars.
+        """
+        try:
+            return self._config["icloud"]["calendars"]
+        except KeyError:
+            return None
+
+    @property
     def email_template_file(self) -> Path:
         """Get email template file path."""
         return Path(self._config["paths"]["email_template"])
-
-    @property
-    def boss_email(self) -> str:
-        """Get boss email address."""
-        return self._config["email"]["boss_email"]
 
     @property
     def your_name(self) -> str:
@@ -87,11 +95,6 @@ class Config:
     def timezone(self) -> str:
         """Get timezone setting."""
         return self._config["timezone"]
-
-    @property
-    def daily_todo_filename_pattern(self) -> str:
-        """Get daily todo filename pattern."""
-        return self._config["daily_todo_filename_pattern"]
 
     def email_to_list(self) -> List[str]:
         """Get email destination list."""

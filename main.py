@@ -249,14 +249,18 @@ def test_config():
         click.echo("   ☁️  Testing iCloud configuration...")
         if config.icloud_username and config.icloud_password:
             click.echo("      ✅ iCloud credentials configured")
-            if hasattr(config, 'icloud_calendars'):
+            if hasattr(config, "icloud_calendars"):
                 calendars = config.icloud_calendars
                 if calendars:
                     click.echo(f"      ✅ Selected calendars: {', '.join(calendars)}")
                 else:
-                    click.echo("      ℹ️  No calendars selected (will sync all calendars)")
+                    click.echo(
+                        "      ℹ️  No calendars selected (will sync all calendars)"
+                    )
             else:
-                click.echo("      ⚠️  No calendar selection configured (will sync all calendars)")
+                click.echo(
+                    "      ⚠️  No calendar selection configured (will sync all calendars)"
+                )
         else:
             click.echo("      ❌ iCloud credentials missing")
 
