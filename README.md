@@ -2,6 +2,8 @@
 
 Automate your workflow by integrating Notion todos, iCloud calendar, and email reporting.
 
+<img width="629" height="782" alt="notion_helper_intro" src="https://github.com/user-attachments/assets/a049f247-a8be-4d01-9e72-71cdb8386aac" />
+
 ## Features
 
 🔄 **Automated 4-Step Workflow**
